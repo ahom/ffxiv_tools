@@ -1,7 +1,7 @@
 from collections import namedtuple
 from contextlib import contextmanager
 from inspect import signature
-import mmap as stdlib_mmap
+import mmap
 import os
 from struct import Struct
 
@@ -127,7 +127,7 @@ class Context:
 
 def struct(func):
     def wrapper(_ctx, *args, **kw):
-        return _ctx._read_struct(_func=func, *args, **kw)
+        return _ctx._read_struct(func, *args, **kw)
     return wrapper
 
 ################################################################################
@@ -165,7 +165,7 @@ _gen_builtin_endian_types("float64", "d")
 
 @struct
 def raw(b, size):
-    return bytes(b._read(size))
+    return memoryview(b._read(size))
 
 _register_builtin_type('raw', raw)
 
@@ -175,7 +175,7 @@ _register_builtin_type('raw', raw)
 
 # Mmap
 @contextmanager
-def mmap(filepath):
+def mmap_reader(filepath):
     return_mmap = None
     try:
         return_mmap = MmapReader(filepath)
@@ -188,7 +188,7 @@ class MmapReader:
     def __init__(self, filepath):
         self.current_pos = 0
         self.fd = open(filepath, "rb")
-        self.mmap = stdlib_mmap.mmap(self.fd.fileno(), 0, prot=stdlib_mmap.PROT_READ)
+        self.mmap = mmap.mmap(self.fd.fileno(), 0, prot=mmap.PROT_READ)
         self.size = os.path.getsize(filepath)
 
     def pos(self):
@@ -212,7 +212,7 @@ class MmapReader:
         self.fd.close()
 
 # Bytes
-def bytes(byte_array):
+def bytes_reader(byte_array):
     return BytesReader(byte_array)
 
 class BytesReader:

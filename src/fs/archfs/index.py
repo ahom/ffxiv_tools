@@ -11,7 +11,7 @@ def index(b):
 
     b.seek(offset)
 
-    return [ index_entry(b) for i in range(size // 0x10) ]
+    return [ index_entry(b) for _ in range(size // 0x10) ]
 
 IndexEntry = namedtuple('IndexEntry', ['dat_number', 'offset', 'dirname_hash', 'filename_hash'])
 @binr.struct
