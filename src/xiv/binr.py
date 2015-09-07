@@ -9,36 +9,47 @@ from struct import Struct
 # Main API
 ################################################################################
 
-def read(_struct, _reader, _debug=False, *args, **kw):
-    _ctx = Context(_reader) if _debug is False else TracingContext(_reader)
-    return _struct(_ctx, *args, **kw)
+def read(_struct, _reader, *args, **kw):
+    if not (isinstance(_reader, BytesReader) or isinstance(_reader, MmapReader)):
+        _reader = bytes_reader(_reader)
+    ctx = Context(_reader)
+    return _struct(ctx, *args, **kw)
 
-def trace_read(_struct, _reader, *args, **kw):
-    _ctx = TracingContext(_reader)
-    return _struct(_ctx, *args, **kw), _ctx._root_stack_trace
+def debug_read(_struct, _reader, *args, **kw):
+    if not (isinstance(_reader, BytesReader) or isinstance(_reader, MmapReader)):
+        _reader = bytes_reader(_reader)
+    ctx = TracingContext(_reader)
+    rv = None
+    try:
+        rv = _struct(ctx, *args, **kw)
+        return False, rv
+    except Exception as e:
+        print(e)
+        return True, ctx._root_stack_trace
 
 ################################################################################
 # StackTraces
 ################################################################################
 
 class StackTrace:
-    __slots__ = ['parent', 'offset', 'value', 'size', 'children']
+    __slots__ = ['parent', 'offset', 'value', 'size', 'result', 'children']
 
     def __init__(self, parent, offset, value):
         self.parent = parent
         self.offset = offset
         self.value = value
         self.size = None
+        self.result = None
         self.children = []
 
         if self.parent is not None:
             self.parent.children.append(self)
 
     def __str__(self):
-        return "<StackTrace(offset={self.offset}, size={self.size}, value={self.value}, children={self.children})>".format(self=self)
+        return "<StackTrace(offset={self.offset}, size={self.size}, value={self.value}, result={self.result}, children={self.children})>".format(self=self)
 
     def __repr__(self):
-        return self.__str__()
+        return str(self)
 
 SeekStackTrace = namedtuple('Seek', ['offset'])
 SkipStackTrace = namedtuple('Skip', ['count'])
@@ -61,12 +72,12 @@ class TracingContext:
     def seek(self, offset):
         self._push_st(SeekStackTrace(offset))
         self._reader.seek(offset)
-        self._update_st()
+        self._update_st(None)
 
     def skip(self, count):
         self._push_st(SkipStackTrace(count))
         self._reader.skip(count)
-        self._update_st()
+        self._update_st(None)
 
     def size(self):
         return self._reader.size()
@@ -76,13 +87,13 @@ class TracingContext:
         # sig.apply_defaults() Python3.5
         _self._push_st(ReadStructStackTrace(_func.__name__, sig.arguments))
         rv = _func(_self, *args, **kw)
-        _self._update_st()
+        _self._update_st(rv)
         return rv
 
     def _read(self, count):
         self._push_st(ReadStackTrace(count))
         rv = self._reader.read(count)
-        self._update_st()
+        self._update_st(rv)
         return rv
 
     def _push_st(self, st):
@@ -95,8 +106,9 @@ class TracingContext:
             self._root_stack_trace = new_st
         self._current_stack_trace = new_st
 
-    def _update_st(self):
+    def _update_st(self, rv):
         self._current_stack_trace.size = self.pos() - self._current_stack_trace.offset
+        self._current_stack_trace.result = rv
         self._current_stack_trace = self._current_stack_trace.parent
 
 class Context:
@@ -169,6 +181,19 @@ def raw(b, size):
 
 _register_builtin_type('raw', raw)
 
+@struct
+def cstring(b):
+    rv = bytearray()
+    while True:
+        c = b._read(1)[0]
+        if c != 0:
+            rv.append(c)
+        else:
+            break
+    return rv
+
+_register_builtin_type('cstring', cstring)
+
 ################################################################################
 # Readers
 ################################################################################
@@ -176,40 +201,40 @@ _register_builtin_type('raw', raw)
 # Mmap
 @contextmanager
 def mmap_reader(filepath):
-    return_mmap = None
+    rv = None
     try:
-        return_mmap = MmapReader(filepath)
-        yield return_mmap
+        rv = MmapReader(filepath)
+        yield rv
     finally:
-        if return_mmap:
-            return_mmap.close()
+        if rv:
+            rv.close()
 
 class MmapReader:
     def __init__(self, filepath):
-        self.current_pos = 0
-        self.fd = open(filepath, "rb")
-        self.mmap = mmap.mmap(self.fd.fileno(), 0, prot=mmap.PROT_READ)
-        self.size = os.path.getsize(filepath)
+        self._current_pos = 0
+        self._fd = open(filepath, "rb")
+        self._mmap = mmap.mmap(self._fd.fileno(), 0, prot=mmap.PROT_READ)
+        self._size = os.path.getsize(filepath)
 
     def pos(self):
-        return self.current_pos
+        return self._current_pos
 
     def seek(self, offset):
-        self.current_pos = offset
+        self._current_pos = offset
 
     def skip(self, count):
-        self.current_pos += count
+        self._current_pos += count
 
     def read(self, count):
-        self.current_pos += count
-        return self.mmap[self.current_pos - count:self.current_pos]
+        self._current_pos += count
+        return self._mmap[self._current_pos - count:self._current_pos]
 
     def size(self):
-        return self.size
+        return self._size
 
     def close(self):
-        self.mmap.close()
-        self.fd.close()
+        self._mmap.close()
+        self._fd.close()
 
 # Bytes
 def bytes_reader(byte_array):
@@ -217,22 +242,22 @@ def bytes_reader(byte_array):
 
 class BytesReader:
     def __init__(self, byte_array):
-        self.current_pos = 0
-        self.bytes = byte_array
-        self.size = len(self.bytes)
+        self._current_pos = 0
+        self._bytes = byte_array
+        self._size = len(self._bytes)
 
     def pos(self):
-        return self.current_pos
+        return self._current_pos
 
     def seek(self, offset):
-        self.current_pos = offset
+        self._current_pos = offset
 
     def skip(self, count):
-        self.current_pos += count
+        self._current_pos += count
 
     def read(self, count):
-        self.current_pos += count
-        return self.bytes[self.current_pos - count:self.current_pos]
+        self._current_pos += count
+        return self._bytes[self._current_pos - count:self._current_pos]
 
     def size(self):
-        return self.size
+        return self._size

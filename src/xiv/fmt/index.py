@@ -1,6 +1,6 @@
 from collections import namedtuple
 
-import binr
+from xiv import binr
 
 @binr.struct
 def index(b):

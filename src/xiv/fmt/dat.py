@@ -2,12 +2,17 @@ from collections import namedtuple
 from io import BytesIO
 import zlib
 
-import binr
+from xiv import binr
 
 File = namedtuple('File', ['header', 'value'])
 @binr.struct
 def file(b, offset):
     fh = file_header(b, offset)
+    return file_with_header(b, fh, offset)
+
+@binr.struct
+def file_with_header(b, fh, offset):
+    b.seek(offset + 0x14)
     value = None
 
     if fh.entry_type == 0x01:
@@ -36,8 +41,6 @@ def file_header(b, offset):
         entry_type = b.uint32(),
         uncompressed_size = b.uint32()
     )
-
-    b.skip(0x08)
 
     return fh
 
