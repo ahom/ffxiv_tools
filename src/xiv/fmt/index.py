@@ -13,7 +13,7 @@ def index(b):
 
     return [ index_entry(b) for _ in range(size // 0x10) ]
 
-IndexEntry = namedtuple('IndexEntry', ['dat_number', 'offset', 'dirname_hash', 'filename_hash'])
+IndexEntry = namedtuple('IndexEntry', ['dat_nb', 'offset', 'dirname_hash', 'filename_hash'])
 @binr.struct
 def index_entry(b):
     filename_hash = b.uint32()
@@ -23,7 +23,7 @@ def index_entry(b):
     b.skip(0x04)
 
     return IndexEntry(
-        dat_number      = (dat_offset_nb & 0x0F) // 0x02,
+        dat_nb          = (dat_offset_nb & 0x0F) // 0x02,
         offset          = (dat_offset_nb & 0xFFFFFFF0) * 0x08,
         dirname_hash    = dirname_hash,
         filename_hash   = filename_hash

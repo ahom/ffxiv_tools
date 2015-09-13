@@ -6,11 +6,20 @@ Mdl = namedtuple('Mdl', [
     'header',
     'type7s',
     'lods',
+    'unknown_data',
     'meshes',
     'type1_string_offsets',
     'type3s',
     'bones_links',
-    'faces'])
+    'faces',
+    'materials_string_offsets',
+    'bones_string_offsets',
+    'type6s',
+    'type8s',
+    'type9s',
+    'type10s',
+    'bone_indexes',
+    'bounding_boxes'])
 @binr.struct
 def mdl(b):
     string_count = b.uint32()
@@ -24,47 +33,79 @@ def mdl(b):
 
     type7s = [ type7(b) for _ in range(header.type7_count) ]
     lods = [ lod(b) for _ in range(3) ]
+
+    unknown_data = None
+    if sum(l.mesh_count for l in lods) + sum(l.mesh_count_2 for l in lods) + sum(l.mesh_count_3 for l in lods) + sum(l.mesh_count_4 for l in lods) != header.mesh_count:
+        unknown_data = [ b.raw(40) for _ in range(3) ]
+
     meshes = [ mesh(b) for _ in range(header.mesh_count) ]
 
-    #type1_string_offsets = [ b.uint32() for _ in range(header.type1_count) ]
+    type1_string_offsets = [ b.uint32() for _ in range(header.type1_count) ]
 
-    #type3s = [ type3(b) for _ in range(header.type3_count) ]
-    #bones_links = [ bones_link(b) for _ in range(header.bones_links_count) ]
-    #faces = [ face(b) for _ in range(header.face_count) ]
+    type3s = [ type3(b) for _ in range(header.type3_count) ]
+    bones_links = [ bones_link(b) for _ in range(header.bones_links_count) ]
+    faces = [ face(b) for _ in range(header.face_count) ]
 
-    return Mdl(
+    materials_string_offsets = [ b.uint32() for _ in range(header.material_count) ]
+    bones_string_offsets = [ b.uint32() for _ in range(header.bone_count) ]
+
+    type6s = [ type6(b) for _ in range(header.type6_count) ]
+    type8s = [ type8(b) for _ in range(header.type8_count) ]
+    type9s = [ type9(b) for _ in range(header.type9_count) ]
+    type10s = [ type10(b) for _ in range(header.type10_count) ]
+
+    bone_indexes_size = b.uint32()
+    bone_indexes = [ b.uint16() for _ in range(bone_indexes_size // 2) ]
+
+    offset_to_bounding_boxes = b.uint8()
+    b.skip(offset_to_bounding_boxes)
+
+    bounding_boxes = [ bounding_box(b) for _ in range(2 + 2 + header.bone_count + header.unknown9) ]
+
+    rv = Mdl(
         header = header,
         type7s = type7s,
         lods = lods,
+        unknown_data = unknown_data,
         meshes = meshes,
-        type1_string_offsets = None, #type1_string_offsets,
-        type3s = None, #type3s,
-        bones_links = None, #bones_links,
-        faces = None #faces
+        type1_string_offsets = type1_string_offsets,
+        type3s = type3s,
+        bones_links = bones_links,
+        faces = faces,
+        materials_string_offsets = materials_string_offsets,
+        bones_string_offsets = bones_string_offsets,
+        type6s = type6s,
+        type8s = type8s,
+        type9s = type9s,
+        type10s = type10s,
+        bone_indexes = bone_indexes,
+        bounding_boxes = bounding_boxes
     )
+
+    return rv
 
 MdlHeader = namedtuple('MdlHeader', [
     'unknown1',
     'mesh_count',
     'type1_count',
-    'bones_link_count',
+    'bones_links_count',
     'material_count',
     'bone_count',
     'type6_count',
     'type8_count',
     'type9_count',
     'type10_count',
-    'unknown7',
+    'lod_count',
     'unknown8',
     'type7_count',
     'type3_count',
+    'unknown22',
     'unknown10',
     'unknown11',
-    'unknown12',
-    'unknown13',
     'unknown9',
     'face_count',
-    'unknown14',
+    'unknown_value',
+    'unknown_14',
     'unknown15',
     'unknown16',
     'unknown17',
@@ -78,24 +119,24 @@ def mdl_header(b):
         unknown1 = b.float32(),
         mesh_count = b.uint16(),
         type1_count = b.uint16(),
-        bones_link_count = b.uint16(),
+        bones_links_count = b.uint16(),
         material_count = b.uint16(),
         bone_count = b.uint16(),
         type6_count = b.uint16(),
         type8_count = b.uint16(),
         type9_count = b.uint16(),
         type10_count = b.uint16(),
-        unknown7 = b.uint8(),
+        lod_count = b.uint8(),
         unknown8 = b.uint8(),
         type7_count = b.uint16(),
-        type3_count = b.uint16(),
-        unknown10 = b.uint16(),
-        unknown11 = b.uint16(),
-        unknown12 = b.uint16(),
-        unknown13 = b.uint16(),
+        type3_count = b.uint8(),
+        unknown22 = b.uint8(),
+        unknown10 = b.float32(),
+        unknown11 = b.uint32(),
         unknown9 = b.uint16(),
         face_count = b.uint16(),
-        unknown14 = b.uint16(),
+        unknown_value = b.uint8(),
+        unknown_14 = b.uint8(),
         unknown15 = b.uint16(),
         unknown16 = b.uint16(),
         unknown17 = b.uint16(),
@@ -112,10 +153,12 @@ Lod = namedtuple('Lod', [
     'unknown2',
     'mesh_index_2',
     'mesh_count_2',
-    'next_mesh_index',
+    'mesh_index_3',
+    'mesh_count_3',
     'index',
     'unknown3',
-    'unknown4',
+    'mesh_index_4',
+    'mesh_count_4',
     'unknown5',
     'specular_color',
     'unknown7',
@@ -133,10 +176,12 @@ def lod(b):
         unknown2 = b.float32(),
         mesh_index_2 = b.uint16(),
         mesh_count_2 = b.uint16(),
-        next_mesh_index = b.uint32(),
+        mesh_index_3 = b.uint16(),
+        mesh_count_3 = b.uint16(),
         index = b.uint16(),
         unknown3 = b.uint16(),
-        unknown4 = b.uint32(),
+        mesh_index_4 = b.uint16(),
+        mesh_count_4 = b.uint16(),
         unknown5 = b.uint32(),
         specular_color = b.uint32(),
         unknown7 = b.uint32(),
@@ -181,7 +226,7 @@ def mesh(b):
 
 Type7 = namedtuple('Type7', [
     'unknown1',
-    'unknown2',
+    'string_offset',
     'unknown3',
     'unknown4',
     'unknown5',
@@ -192,7 +237,7 @@ Type7 = namedtuple('Type7', [
 def type7(b):
     return Type7(
         unknown1 = b.uint32(),
-        unknown2 = b.uint32(),
+        string_offset = b.uint32(),
         unknown3 = b.float32(),
         unknown4 = b.float32(),
         unknown5 = b.uint32(),
@@ -227,15 +272,15 @@ def type3(b):
         unknown7 = b.uint16()
     )
 
-BonesLinks = namedtuple('BonesLinks', [
+BonesLink = namedtuple('BonesLink', [
     'indices_index',
     'indices_count',
     'index',
     'bone_index',
     'bone_count'])
 @binr.struct
-def bones_links(b):
-    return BonesLinks(
+def bones_link(b):
+    return BonesLink(
         indices_index = b.uint32(),
         indices_count = b.uint32(),
         index = b.uint32(),
@@ -243,14 +288,92 @@ def bones_links(b):
         bone_count = b.uint16()
     )
 
-Faces = namedtuple('Faces', [
+Face = namedtuple('Face', [
     'indices_index',
     'indices_count',
     'index'])
 @binr.struct
-def faces(b):
-    return BonesLinks(
+def face(b):
+    return Face(
         indices_index = b.uint32(),
         indices_count = b.uint32(),
         index = b.uint32()
+    )
+
+Type6 = namedtuple('Type6', [
+    'bone_indexes',
+    'unknown2'])
+@binr.struct
+def type6(b):
+    return Type6(
+        bone_indexes = [ b.uint16() for _ in range(64) ],
+        unknown2 = b.uint32()
+    )
+
+Type8 = namedtuple('Type8', [
+    'string_offset',
+    'unknown',
+    'type9_index_0',
+    'type9_index_1',
+    'type9_index_2',
+    'type9_count_0',
+    'type9_count_1',
+    'type9_count_2',])
+@binr.struct
+def type8(b):
+    return Type8(
+        string_offset = b.uint16(),
+        unknown = b.uint16(),
+        type9_index_0 = b.uint16(),
+        type9_index_1 = b.uint16(),
+        type9_index_2 = b.uint16(),
+        type9_count_0 = b.uint16(),
+        type9_count_1 = b.uint16(),
+        type9_count_2 = b.uint16()
+    )
+
+Type9 = namedtuple('Type9', [
+    'unknown',
+    'type10_count',
+    'type10_index'])
+@binr.struct
+def type9(b):
+    return Type9(
+        unknown = b.uint32(),
+        type10_count = b.uint32(),
+        type10_index = b.uint32()
+    )
+
+Type10 = namedtuple('Type10', [
+    'id1',
+    'id2'])
+@binr.struct
+def type10(b):
+    return Type10(
+        id1 = b.uint16(),
+        id2 = b.uint16()
+    )
+
+Point = namedtuple('Point', [
+    'x',
+    'y',
+    'z',
+    'w'])
+@binr.struct
+def point(b):
+    return Point(
+        x = b.float32(),
+        y = b.float32(),
+        z = b.float32(),
+        w = b.float32()
+    )
+
+BoundingBox = namedtuple('BoundingBox', [
+    'min',
+    'max'])
+@binr.struct
+def bounding_box(b):
+    return BoundingBox(
+        min = point(b),
+        max = point(b)
     )
