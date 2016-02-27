@@ -7,6 +7,8 @@ import configparser
 import logging
 from itertools import chain, islice
 
+from binr.debug import launch_server
+
 from .fs import FileType, FileRef
 from .archfs import FileSystem as archfs
 from .fsdt import DataTables as fsdt
@@ -45,36 +47,45 @@ def print_data(data):
         )
 
 def view_file(conf, args):
-    _view_file(get_fs(conf, args).folder(args.folder).file(FileRef(args.folder, int(args.dirname_hash, 0x10), int(args.filename_hash, 0x10))))
+    _view_file(args, get_fs(conf, args).folder(args.folder).file(FileRef(args.folder, int(args.dirname_hash, 0x10), int(args.filename_hash, 0x10))))
 
 def view_filename(conf, args):
-    _view_file(get_fs(conf, args).file(args.filename))
+    _view_file(args, get_fs(conf, args).file(args.filename))
 
-def _view_file(file):
+def _view_file(args, file):
     file = file.read()
     print('>>> file')
     print(file)
+    buf = []
     if file.type() == FileType.STD:
         print()
         print('>>> data')
         print_data(file.data())
+        buf.append(file.data())
     elif file.type() == FileType.TEX:
         print()
         print('>>> header')
         print_data(file.header())
+        buf.append(file.header())
         print()
         print('>>> mipmaps')
         print_data(file.mipmaps())
+        buf.append(file.mipmaps())
     elif file.type() == FileType.MDL:
         print()
         print('>>> header')
         print_data(file.header())
+        buf.append(file.header())
         print()
         print('>>> mesh_headers')
         print_data(file.mesh_headers())
+        buf.append(file.mesh_headers())
         print()
         print('>>> lods_buffers')
         print_data(file.lods_buffers())
+        buf.append(file.lods_buffers())
+    if args.m and args.f:
+        launch_server(args.m, args.f, buf[args.i])
 
 def view_dt(conf, args):
     dt = get_dt(conf, args)
@@ -227,12 +238,18 @@ def main():
 
     view_filename_parser = view_subparsers.add_parser('filename')
     view_filename_parser.add_argument('filename')
+    view_filename_parser.add_argument('-m', required=False, help='module containing the func to apply')
+    view_filename_parser.add_argument('-f', required=False, help='func to apply')
+    view_filename_parser.add_argument('-i', required=False, help='buffer index', default=0, type=int)
     view_filename_parser.set_defaults(callback=view_filename)
 
     view_file_parser = view_subparsers.add_parser('file')
     view_file_parser.add_argument('folder')
     view_file_parser.add_argument('dirname_hash')
     view_file_parser.add_argument('filename_hash')
+    view_file_parser.add_argument('-m', required=False, help='module containing the func to apply')
+    view_file_parser.add_argument('-f', required=False, help='func to apply')
+    view_file_parser.add_argument('-i', required=False, help='buffer index', default=0, type=int)
     view_file_parser.set_defaults(callback=view_file)
 
     view_dt_parser = view_subparsers.add_parser('dt')
