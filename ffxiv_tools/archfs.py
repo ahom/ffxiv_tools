@@ -1,9 +1,12 @@
+import logging
 from pathlib import Path
 
-from xiv import fs, binr
-from xiv.utils import lazy_attribute
-from xiv.fmt.index import index
-from xiv.fmt.dat import file, file_header, file_with_header
+import binr
+
+from . import fs
+from .utils import lazy_attribute, mmap_reader
+from .fmt.index import index
+from .fmt.dat import file, file_header, file_with_header
 
 class FileSystem(fs.FileSystem):
     DAT_ID_TO_NAME = {
@@ -25,8 +28,9 @@ class FileSystem(fs.FileSystem):
     }
 
     def __init__(self, base_path):
-        super(FileSystem, self).__init__()
+        super().__init__()
         self._base_path = base_path
+        logging.info(self)
 
     @lazy_attribute
     def _folders(self):
@@ -53,15 +57,16 @@ class FileSystem(fs.FileSystem):
 
 class Folder(fs.Folder):
     def __init__(self, base_path, dat_id, name):
-        super(Folder, self).__init__(name)
+        super().__init__(name)
         self._base_path = base_path
         self._dat_id = dat_id
+        logging.info(self)
 
     @lazy_attribute
     def _files(self):
         rv = {}
         file_entries = None
-        with binr.mmap_reader('{0}/{1}0000.win32.index'.format(self._base_path, self._dat_id)) as r:
+        with mmap_reader('{0}/{1}0000.win32.index'.format(self._base_path, self._dat_id)) as r:
             rv = {
                 (file_entry.dirname_hash, file_entry.filename_hash): File(
                     dat_path = '{0}/{1}0000.win32.dat{2}'.format(self._base_path, self._dat_id, file_entry.dat_nb),
@@ -76,14 +81,14 @@ class Folder(fs.Folder):
         return rv
 
     def __str__(self):
-        return '<archfs.Folder(base_path={self._base_path}, dat_id={self._dat_id}, name={name})>'.format(self=self, name=self.name())
+        return '<archfs.Folder({}, base_path={self._base_path}, dat_id={self._dat_id})>'.format(super().__str__(), self=self)
 
     def files(self):
         for file_ in self._files.values():
             yield file_
 
     def file(self, fileref):
-        return self._files[(fileref.fullpath_hash(), fileref.dirname_hash(), fileref.filename_hash())]
+        return self._files[(fileref.dirname_hash(), fileref.filename_hash())]
 
 class File(fs.File):
     ENTRY_TYPE_TO_FILE_TYPE = {
@@ -94,27 +99,25 @@ class File(fs.File):
     }
 
     def __init__(self, fileref, dat_path, offset):
-        super(File, self).__init__(fileref)
+        super().__init__(fileref)
         self._dat_path = dat_path
         self._offset = offset
+        logging.info(self)
 
     @lazy_attribute
     def _header(self):
-        with binr.mmap_reader(self._dat_path) as r:
+        with mmap_reader(self._dat_path) as r:
             return binr.read(file_header, r, self._offset)
 
     def __str__(self):
-        return '<archfs.File(fileref={fileref}, dat_path={self._dat_path}, offset={self._offset})>'.format(
-            self=self,
-            fileref=self.fileref()
-        )
+        return '<archfs.File({}, dat_path={self._dat_path}, offset={self._offset})>'.format(super().__str__(), self=self)
 
     def type(self):
         return self.ENTRY_TYPE_TO_FILE_TYPE[self._header.entry_type]
 
     def read(self):
         file_value = None
-        with binr.mmap_reader(self._dat_path) as r:
+        with mmap_reader(self._dat_path) as r:
             file_value = binr.read(file_with_header, r, self._header, self._offset)
         file_type = self.type()
 

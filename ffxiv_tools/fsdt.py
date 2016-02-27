@@ -1,13 +1,18 @@
-from xiv import dt, fs, binr
-from xiv.utils import lazy_attribute
-from xiv.fmt.exl import exl
-from xiv.fmt.exh import exh
-from xiv.fmt.exd import exd
+import logging
+
+import binr
+
+from . import dt, fs
+from .utils import lazy_attribute
+from .fmt.exl import exl
+from .fmt.exh import exh
+from .fmt.exd import exd
 
 class DataTables(dt.DataTables):
     def __init__(self, fs):
-        super(DataTables, self).__init__()
+        super().__init__()
         self._fs = fs
+        logging.info(self)
 
     @lazy_attribute
     def _tables(self):
@@ -26,19 +31,20 @@ class DataTables(dt.DataTables):
 
 class Table(dt.Table):
     LANG_ID_TO_LANG = {
-    	0: "",
-    	1: "ja",
-    	2: "en",
-    	3: "de",
-    	4: "fr",
-    	5: "chs",
-    	6: "cht",
-    	7: "ko"
+        0: "",
+        1: "ja",
+        2: "en",
+        3: "de",
+        4: "fr",
+        5: "chs",
+        6: "cht",
+        7: "ko"
     }
 
     def __init__(self, fs, name):
-        super(Table, self).__init__(name)
+        super().__init__(name)
         self._fs = fs
+        logging.info(self)
 
     @lazy_attribute
     def _loc_tables(self):
@@ -52,26 +58,24 @@ class Table(dt.Table):
 
         return rv
 
+    def __str__(self):
+        return '<fsdt.Table({}, fs={self._fs})>'.format(super().__str__(), self=self)
+
     def loc_tables(self):
         return self._loc_tables.values()
 
     def loc_table(self, lang):
         return self._loc_tables[lang]
 
-    def __str__(self):
-        return '<fsdt.Table(fs={self._fs}, name={name})>'.format(self=self, name=self.name())
-
 class LocTable(dt.LocTable):
     def __init__(self, fs, name, lang, data_offset, ids, members):
-        super(LocTable, self).__init__(name, lang)
+        super().__init__(name, lang)
         self._fs = fs
         self._data_offset = data_offset
         self._ids = ids
         self._members = members
         self._lang_ext = '_{}'.format(lang) if lang else ''
-
-    def __str__(self):
-        return '<fsdt.LocTable(fs={self._fs}, name={name}, lang={lang}, data_offset={self._data_offset}, ids={self._ids}, members={self._members})>'.format(self=self, name=self.name(), lang=self.lang())
+        logging.info(self)
 
     @lazy_attribute
     def _rows(self):
@@ -82,8 +86,11 @@ class LocTable(dt.LocTable):
                 rv[record.id] = record
         return rv
 
+    def __str__(self):
+        return '<fsdt.LocTable({}, fs={self._fs}, data_offset={self._data_offset}, ids={self._ids}, members={self._members})>'.format(super().__str__(), self=self)
+
     def rows(self):
         return self._rows.values()
 
     def row(self, id):
-        raise self._rows[id]
+        return self._rows[id]

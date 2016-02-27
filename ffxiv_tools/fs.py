@@ -1,3 +1,4 @@
+import logging
 from pathlib import Path
 from zlib import crc32
 
@@ -8,22 +9,22 @@ class FileRef:
         self._filename_hash = filename_hash
 
     def __str__(self):
-        return '<FileRef(folder_name={self._folder_name}, dirname_hash={self._dirname_hash:08X}, filename_hash={self._filename_hash:08X})>'.format(self=self)
+        return '<fs.FileRef(folder_name={self._folder_name}, dirname_hash={self._dirname_hash:08X}, filename_hash={self._filename_hash:08X})>'.format(self=self)
 
-    def folder_name():
+    def folder_name(self):
         return self._folder_name
 
-    def dirname_hash():
+    def dirname_hash(self):
         return self._dirname_hash
 
-    def filename_hash():
+    def filename_hash(self):
         return self._filename_hash
 
 def fileref_from_filepath(filepath):
-    filepath = filepath.lower()
+    filepath_lower = filepath.lower()
 
-    folder_name = filepath.split('/', 1)[0]
-    dirname, filename = filepath.lower().rsplit('/', 1)
+    folder_name = filepath_lower.split('/', 1)[0]
+    dirname, filename = filepath_lower.rsplit('/', 1)
 
     return FileRef(
         folder_name = folder_name,
@@ -46,7 +47,8 @@ class FileSystem:
             yield from folder.files()
 
     def file(self, filepath):
-        return self.folder(folder_name).file(fileref_from_filepath(filepath))
+        fileref = fileref_from_filepath(filepath)
+        return self.folder(fileref.folder_name()).file(fileref)
 
     def std_data(self, filepath):
         return self.file(filepath).read().data()
@@ -94,12 +96,13 @@ class File:
         p = p / '{:08X}'.format(fileref.filename_hash())
         return p
 
+    def __str__(self):
+        return '<fs.File(fileref={self._fileref})>'.format(self=self)
+
 class NonFile(File):
     def __init__(self, fileref):
-        super(NonFile, self).__init__(fileref)
-
-    def __str__(self):
-        return '<fs.NonFile(fileref={})>'.format(self.fileref())
+        super().__init__(fileref)
+        logging.info(self)
 
     def type(self):
         return FileType.NON
@@ -110,16 +113,14 @@ class NonFile(File):
     def write(self, base_folder_path):
         pass
 
+    def __str__(self):
+        return '<fs.NonFile(file={})>'.format(super().__str__())
+
 class StdFile(File):
     def __init__(self, fileref, data):
-        super(StdFile, self).__init__(fileref)
+        super().__init__(fileref)
         self._data = data
-
-    def __str__(self):
-        return '<fs.StdFile(fileref={fileref}, data={self._data})>'.format(
-            self=self,
-            fileref=self.fileref()
-        )
+        logging.info(self)
 
     def type(self):
         return FileType.STD
@@ -134,18 +135,16 @@ class StdFile(File):
         with self._prepare_write(base_folder_path).with_suffix('.{}'.format(self.type())).open('wb') as f:
             f.write(self.data())
 
+    def __str__(self):
+        return '<fs.StdFile(file={}, data={self._data})>'.format(super().__str__(), self=self)
+
 class MdlFile(File):
     def __init__(self, fileref, header, mesh_headers, lods_buffers):
-        super(MdlFile, self).__init__(fileref)
+        super().__init__(fileref)
         self._header = header
         self._mesh_headers = mesh_headers
         self._lods_buffers = lods_buffers
-
-    def __str__(self):
-        return '<fs.MdlFile(fileref={fileref}, header={self._header}, mesh_headers={self._mesh_headers}, lods_buffers={self._lods_buffers})>'.format(
-            self=self,
-            fileref=self.fileref()
-        )
+        logging.info(self)
 
     def type(self):
         return FileType.MDL
@@ -173,17 +172,15 @@ class MdlFile(File):
                 with p.with_suffix('.{0}.lods_buffers.{1}.{2}'.format(self.type(), i, j)).open('wb') as f:
                     f.write(buf)
 
+    def __str__(self):
+        return '<fs.MdlFile(file={}, header={self._header}, mesh_headers={self._mesh_headers}, lods_buffers={self._lods_buffers})>'.format(super().__str__(), self=self)
+
 class TexFile(File):
     def __init__(self, fileref, header, mipmaps):
-        super(TexFile, self).__init__(fileref)
+        super().__init__(fileref)
         self._header = header
         self._mipmaps = mipmaps
-
-    def __str__(self):
-        return '<fs.TexFile(fileref={fileref}, header={self._header}, mipmaps={self._mipmaps})>'.format(
-            self=self,
-            fileref=self.fileref()
-        )
+        logging.info(self)
 
     def type(self):
         return FileType.TEX
@@ -204,3 +201,6 @@ class TexFile(File):
         for i, mipmap in enumerate(self.mipmaps()):
             with p.with_suffix('.{0}.mipmaps.{1}'.format(self.type(), i)).open('wb') as f:
                 f.write(mipmap)
+
+    def __str__(self):
+        return '<fs.TexFile(file={}, header={self._header}, mipmaps={self._mipmaps})>'.format(super().__str__(), self=self)

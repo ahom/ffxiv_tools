@@ -1,6 +1,7 @@
-from collections import namedtuple
+import binr
+import binr.types as t
 
-from xiv import binr
+from ..utils import nt
 
 MEMBER_TYPE_TO_FUNC = {
     0x00:   'beuint32',
@@ -26,43 +27,41 @@ MEMBER_TYPE_TO_FUNC = {
     0x20:   'uint8'
 }
 
-ExdRecord = namedtuple('ExdRecord', ['id', 'values'])
 @binr.struct
-def exd(b, data_offset, members):
-    b.seek(0x08)
+def exd(c, data_offset, members):
+    c.seek(0x08)
 
-    headers_size = b.beuint32()
+    headers_size = t.beuint32(c)
 
-    b.seek(0x20)
+    c.seek(0x20)
 
-    record_headers = [ exd_record_header(b) for _ in range(headers_size // 0x08) ]
+    record_headers = [ exd_record_header(c) for _ in range(headers_size // 0x08) ]
 
     records = []
     for record_header in record_headers:
         values = []
         for member in members:
-            b.seek(record_header.offset + 6 + member.offset)
-            value = getattr(b, MEMBER_TYPE_TO_FUNC[member.type])()
+            c.seek(record_header.offset + 6 + member.offset)
+            value = getattr(t, MEMBER_TYPE_TO_FUNC[member.type])(c)
 
             if member.type == 0x00: # string
-                b.seek(record_header.offset + 6 + data_offset + value)
-                value = b.cstring()
+                c.seek(record_header.offset + 6 + data_offset + value)
+                value = t.cstringraw(c)
             elif member.type == 0x01:
                 value = (value == 0x01)
             elif member.type >= 0x19: # bit types
-                value = (value >> (member.type - 0x19))
+                value = ((value >> (member.type - 0x19)) == 0x01)
 
             values.append(value)
-        records.append(ExdRecord(
+        records.append(nt('ExdRecord',
             id = record_header.id,
             values = tuple(values)
         ))
     return records
 
-ExdRecordHeader = namedtuple('ExdRecordHeader', ['id', 'offset'])
 @binr.struct
-def exd_record_header(b):
-    return ExdRecordHeader(
-        id = b.beuint32(),
-        offset = b.beuint32()
+def exd_record_header(c):
+    return nt('ExdRecordHeader', 
+        id = t.beuint32(c),
+        offset = t.beuint32(c)
     )

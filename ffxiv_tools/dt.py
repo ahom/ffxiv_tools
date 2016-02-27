@@ -15,6 +15,9 @@ class DataTables:
         for table in self.tables():
             yield from table.loc_tables()
 
+    def __str__(self):
+        return '<dt.DataTables()>'
+
 class Table:
     def __init__(self, name):
         self._name = name
@@ -27,6 +30,9 @@ class Table:
 
     def loc_table(self, lang):
         raise NotImplementedError()
+
+    def __str__(self):
+        return '<dt.Table(name={self._name}>)'.format(self=self)
 
 class LocTable:
     def __init__(self, name, lang):
@@ -44,6 +50,9 @@ class LocTable:
 
     def row(self, id):
         raise NotImplementedError()
+
+    def __str__(self):
+        return '<dt.LocTable(name={self._name}, lang={self._lang})>'.format(self=self)
 
     def write(self, base_folder_path):
         lang = self.lang()
