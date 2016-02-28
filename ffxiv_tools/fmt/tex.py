@@ -11,7 +11,7 @@ def tex(c):
     width = t.uint16(c)
     height = t.uint16(c)
     return nt('Tex',
-        type = type,
-        width = width,
-        height = height
+        ('type'   , type),
+        ('width'  , width),
+        ('height' , height)
     )

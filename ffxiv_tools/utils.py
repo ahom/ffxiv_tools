@@ -1,6 +1,6 @@
 from collections import namedtuple
 from contextlib import contextmanager
-from itertools import chain
+from itertools import chain, islice
 import mmap
 
 class lazy_attribute:
@@ -22,24 +22,33 @@ def mmap_reader(filepath):
             yield m
 
 NAMEDTUPLE_CACHE = {}
-def nt(name, **kwargs):
+def nt(name, *args):
     if not name in NAMEDTUPLE_CACHE:
-        NAMEDTUPLE_CACHE[name] = namedtuple(name, list(kwargs))
-    return NAMEDTUPLE_CACHE[name](**kwargs)
+        NAMEDTUPLE_CACHE[name] = namedtuple(name, [k for k, v in args])
+    return NAMEDTUPLE_CACHE[name](**{ k: v for k, v in args})
 
+ITEMS_PER_PAGE = 100
 def print_table(headers, rows):
     headers = list(headers)
-    rows = list(rows)
+    
+    tail = islice(rows, None) # transforms into iterator
+    while True:
+        rows = list(islice(tail, ITEMS_PER_PAGE)) # handling it page by page
 
-    # determine width for each column
-    widths = [max(len(str(val)) for val in column) for column in zip(headers, *rows)]
+        if not rows:
+            break
 
-    # print header
-    print(' | '.join('{!s:<{width}}'.format(val, width=width) for val, width in zip(headers, widths)))
+        # determine width for each column
+        widths = [max(len(str(val)) for val in column) for column in zip(headers, *rows)]
 
-    # print separator
-    print('-+-'.join('-' * width for width in widths))
+        # print header
+        print(' | '.join('{!s:<{width}}'.format(val, width=width) for val, width in zip(headers, widths)))
 
-    # print data
-    for row in rows:
-        print(' | '.join('{!s:<{width}}'.format(val, width=width) for val, width in zip(row, widths)))
+        # print separator
+        print('-+-'.join('-' * width for width in widths))
+
+        # print data
+        for row in rows:
+            print(' | '.join('{!s:<{width}}'.format(val, width=width) for val, width in zip(row, widths)))
+
+        print()

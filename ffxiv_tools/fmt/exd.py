@@ -35,7 +35,7 @@ def exd(c, data_offset, members):
 
     c.seek(0x20)
 
-    record_headers = [ exd_record_header(c) for _ in range(headers_size // 0x08) ]
+    record_headers = t.array(c, exd_record_header, headers_size // 0x08)
 
     records = []
     for record_header in record_headers:
@@ -54,14 +54,14 @@ def exd(c, data_offset, members):
 
             values.append(value)
         records.append(nt('ExdRecord',
-            id = record_header.id,
-            values = tuple(values)
+            ('id'     , record_header.id),
+            ('values' , tuple(values))
         ))
     return records
 
 @binr.struct
 def exd_record_header(c):
     return nt('ExdRecordHeader', 
-        id = t.beuint32(c),
-        offset = t.beuint32(c)
+        ('id'     , t.beuint32(c)),
+        ('offset' , t.beuint32(c))
     )

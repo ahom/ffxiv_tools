@@ -5,6 +5,7 @@ import sys
 import argparse
 import configparser
 import logging
+import math
 from itertools import chain, islice
 
 from binr.debug import launch_server
@@ -40,7 +41,7 @@ def view_folder(conf, args):
 
 BYTES_PER_LINE = 0x10
 def print_data(data):
-    for i in range((len(data) // BYTES_PER_LINE) + 1):
+    for i in range(math.ceil(len(data) / BYTES_PER_LINE)):
         print(
             '{:<{size}}'.format(' '.join('{:02X}'.format(d) for d in data[i * BYTES_PER_LINE:(i+1) * BYTES_PER_LINE]), size=BYTES_PER_LINE * 3)
             + '| ' + ''.join(chr(d) if 0x20 <= d < 0x7F else '.' for d in data[i * BYTES_PER_LINE:(i+1) * BYTES_PER_LINE])
@@ -67,10 +68,11 @@ def _view_file(args, file):
         print('>>> header')
         print_data(file.header())
         buf.append(file.header())
-        print()
-        print('>>> mipmaps')
-        print_data(file.mipmaps())
-        buf.append(file.mipmaps())
+        for i, mipmap in enumerate(file.mipmaps()):
+            print()
+            print('>>> mipmap[{}]'.format(i))
+            print_data(mipmap)
+            buf.append(mipmap)
     elif file.type() == FileType.MDL:
         print()
         print('>>> header')
@@ -80,10 +82,12 @@ def _view_file(args, file):
         print('>>> mesh_headers')
         print_data(file.mesh_headers())
         buf.append(file.mesh_headers())
-        print()
-        print('>>> lods_buffers')
-        print_data(file.lods_buffers())
-        buf.append(file.lods_buffers())
+        for i, lod_buffers in enumerate(file.lods_buffers()):
+            for j, lod_buffer in enumerate(lod_buffers):
+                print()
+                print('>>> lod[{}]_buffer[{}]'.format(i, j))
+                print_data(lod_buffer)
+                buf.append(lod_buffer)
     if args.m and args.f:
         launch_server(args.m, args.f, buf[args.i])
 
@@ -117,14 +121,13 @@ def view_row(conf, args):
     print(row.id)
     print()
     print('>>> values')
-    for val in row.values:
-        print(val)
+    print_table(['INDEX', 'VALUE'], ((i, val) for i, val in enumerate(row.values)))
 
 ########
 # LIST #
 ########
 def _list_files(files):
-    print_table(['DIRNAME_HASH', 'FILENAME_HASH'], (('{:08X}'.format(file.fileref().dirname_hash()), '{:08X}'.format(file.fileref().filename_hash())) for file in files))
+    print_table(['TYPE', 'DIRNAME_HASH', 'FILENAME_HASH'], ((file.type(), '{:08X}'.format(file.fileref().dirname_hash()), '{:08X}'.format(file.fileref().filename_hash())) for file in files))
 
 def _list_folders(folders):
     print_table(['NAME'], ((folder.name(), ) for folder in folders))
@@ -136,10 +139,11 @@ def _list_loc_tables(loc_tables):
     print_table(['NAME', 'LANG'], ((loc_table.name(), loc_table.lang()) for loc_table in loc_tables))
 
 def _list_rows(rows):
+    rows = islice(rows, None)
     first_row = list(islice(rows, 1))
     if first_row:
         headers = ['ID'] + [str(i) for i in range(len(first_row[0].values))]
-        print_table(headers, ([val.id] + list(val.values) for val in chain(first_row, islice(rows, 1, None))))
+        print_table(headers, ([val.id] + list(val.values) for val in chain(first_row, rows)))
 
 ###########
 # LOGGING #
