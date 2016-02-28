@@ -17,11 +17,11 @@ class DataTables(dt.DataTables):
     @lazy_attribute
     def _tables(self):
         return {
-            table_name: Table(self._fs, table_name) for table_name in binr.read(exl, self._fs.std_data('exd/root.exl'))
+            table_name: Table(self._fs, table_name) for table_name in binr.read(exl, self._fs.std_data("exd/root.exl"))
         }
 
     def __str__(self):
-        return '<fsdt.DataTables(fs={self._fs})>'.format(self=self)
+        return "<fsdt.DataTables(fs={self._fs})>".format(self=self)
 
     def tables(self):
         return self._tables.values()
@@ -48,7 +48,7 @@ class Table(dt.Table):
 
     @lazy_attribute
     def _loc_tables(self):
-        exh_data = binr.read(exh, self._fs.std_data('exd/{}.exh'.format(self.name())))
+        exh_data = binr.read(exh, self._fs.std_data("exd/{}.exh".format(self.name())))
 
         rv = {}
         for lang_id in exh_data.langs:
@@ -59,7 +59,7 @@ class Table(dt.Table):
         return rv
 
     def __str__(self):
-        return '<fsdt.Table({}, fs={self._fs})>'.format(super().__str__(), self=self)
+        return "<fsdt.Table({}, fs={self._fs})>".format(super().__str__(), self=self)
 
     def loc_tables(self):
         return self._loc_tables.values()
@@ -74,20 +74,20 @@ class LocTable(dt.LocTable):
         self._data_offset = data_offset
         self._ids = ids
         self._members = members
-        self._lang_ext = '_{}'.format(lang) if lang else ''
+        self._lang_ext = "_{}".format(lang) if lang else ""
         logging.info(self)
 
     @lazy_attribute
     def _rows(self):
         rv = {}
         for id in self._ids:
-            records = binr.read(exd, self._fs.std_data('exd/{0}_{1}{2}.exd'.format(self.name(), id, self._lang_ext)), self._data_offset, self._members)
+            records = binr.read(exd, self._fs.std_data("exd/{0}_{1}{2}.exd".format(self.name(), id, self._lang_ext)), self._data_offset, self._members)
             for record in records:
                 rv[record.id] = record
         return rv
 
     def __str__(self):
-        return '<fsdt.LocTable({}, fs={self._fs}, data_offset={self._data_offset}, ids={self._ids}, members={self._members})>'.format(super().__str__(), self=self)
+        return "<fsdt.LocTable({}, fs={self._fs}, data_offset={self._data_offset}, ids={self._ids}, members={self._members})>".format(super().__str__(), self=self)
 
     def rows(self):
         return self._rows.values()

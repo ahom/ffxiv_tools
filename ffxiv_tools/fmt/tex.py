@@ -10,8 +10,8 @@ def tex(c):
     c.skip(0x02)
     width = t.uint16(c)
     height = t.uint16(c)
-    return nt('Tex',
-        ('type'   , type),
-        ('width'  , width),
-        ('height' , height)
+    return nt("Tex",
+        ("type"   , type),
+        ("width"  , width),
+        ("height" , height)
     )

@@ -16,7 +16,7 @@ class DataTables:
             yield from table.loc_tables()
 
     def __str__(self):
-        return '<dt.DataTables()>'
+        return "<dt.DataTables()>"
 
 class Table:
     def __init__(self, name):
@@ -32,7 +32,7 @@ class Table:
         raise NotImplementedError()
 
     def __str__(self):
-        return '<dt.Table(name={self._name}>)'.format(self=self)
+        return "<dt.Table(name={self._name}>)".format(self=self)
 
 class LocTable:
     def __init__(self, name, lang):
@@ -52,17 +52,17 @@ class LocTable:
         raise NotImplementedError()
 
     def __str__(self):
-        return '<dt.LocTable(name={self._name}, lang={self._lang})>'.format(self=self)
+        return "<dt.LocTable(name={self._name}, lang={self._lang})>".format(self=self)
 
     def write(self, base_folder_path):
         lang = self.lang()
         if lang:
-            lang = '.{}'.format(lang)
-        p = Path(base_folder_path) / '{0}{1}.csv'.format(self.name(), lang)
+            lang = ".{}".format(lang)
+        p = Path(base_folder_path) / "{0}{1}.csv".format(self.name(), lang)
         parent_folder = p.parent
         if not parent_folder.exists():
             parent_folder.mkdir(parents=True)
-        with p.open('w', newline='') as csvfile:
+        with p.open("w", newline="") as csvfile:
             writer = csv_writer(csvfile)
             for row in self.rows():
                 writer.writerow((row.id,) + row.values)

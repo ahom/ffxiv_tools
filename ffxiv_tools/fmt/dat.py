@@ -25,21 +25,21 @@ def file_with_header(c, fh, offset):
     elif fh.entry_type == 0x04:
         value = tex_file(c, fh, offset)
     else:
-        raise NotImplementedError('Unknown entry_type: {0}'.format(fh.entry_type))
+        raise NotImplementedError("Unknown entry_type: {0}".format(fh.entry_type))
 
-    return nt('File', 
-        ('header' , fh),
-        ('value' , value)
+    return nt("File", 
+        ("header" , fh),
+        ("value" , value)
     )
 
 @binr.struct
 def file_header(c, offset):
     c.seek(offset)
 
-    return nt('FileHeader',
-        ('size'              , t.uint32(c)),
-        ('entry_type'        , t.uint32(c)),
-        ('uncompressed_size' , t.uint32(c))
+    return nt("FileHeader",
+        ("size"              , t.uint32(c)),
+        ("entry_type"        , t.uint32(c)),
+        ("uncompressed_size" , t.uint32(c))
     )
 
 def decompress_block(c, offset, output):
@@ -73,10 +73,10 @@ def std_file(c, fh, file_offset):
 
 @binr.struct
 def std_file_block_header(c):
-    return nt('StdFileBlockHeader', 
-        ('offset'            , t.uint32(c)),
-        ('size'              , t.uint16(c)),
-        ('uncompressed_size' , t.uint16(c))
+    return nt("StdFileBlockHeader", 
+        ("offset"            , t.uint32(c)),
+        ("size"              , t.uint16(c)),
+        ("uncompressed_size" , t.uint16(c))
     )
 
 ################################################################################
@@ -102,10 +102,10 @@ def mdl_file(c, fh, file_offset):
         output.seek(0)
         blocks.append(output.getbuffer())
 
-    return nt('MdlFile', 
-        ('header'       , blocks[1]),
-        ('mesh_headers' , blocks[0]),
-        ('lods_buffers' , [
+    return nt("MdlFile", 
+        ("header"       , blocks[1]),
+        ("mesh_shapes"  , blocks[0]),
+        ("lods_buffers" , [
             [ blocks[i + 2], blocks[i + 8] ] for i in range(3)
         ])
     )
@@ -114,12 +114,12 @@ def mdl_file(c, fh, file_offset):
 def mdl_file_block_headers(c):
     c.skip(0x04)
 
-    rv = nt('MdlFileBlockHeaders',
-        ('uncompressed_sizes' , t.array(c, t.uint32, MDL_FILE_BLOCK_HEADERS_COUNT)),
-        ('sizes'              , t.array(c, t.uint32, MDL_FILE_BLOCK_HEADERS_COUNT)),
-        ('offsets'            , t.array(c, t.uint32, MDL_FILE_BLOCK_HEADERS_COUNT)),
-        ('block_id_starts'    , t.array(c, t.uint16, MDL_FILE_BLOCK_HEADERS_COUNT)),
-        ('block_counts'       , t.array(c, t.uint16, MDL_FILE_BLOCK_HEADERS_COUNT))
+    rv = nt("MdlFileBlockHeaders",
+        ("uncompressed_sizes" , t.array(c, t.uint32, MDL_FILE_BLOCK_HEADERS_COUNT)),
+        ("sizes"              , t.array(c, t.uint32, MDL_FILE_BLOCK_HEADERS_COUNT)),
+        ("offsets"            , t.array(c, t.uint32, MDL_FILE_BLOCK_HEADERS_COUNT)),
+        ("block_id_starts"    , t.array(c, t.uint16, MDL_FILE_BLOCK_HEADERS_COUNT)),
+        ("block_counts"       , t.array(c, t.uint16, MDL_FILE_BLOCK_HEADERS_COUNT))
     )
 
     c.skip(0x08)
@@ -152,17 +152,17 @@ def tex_file(c, fh, file_offset):
         output.seek(0)
         mipmaps.append(output.getbuffer())
 
-    return nt('TexFile', 
-        ('header'  , header),
-        ('mipmaps' , mipmaps)
+    return nt("TexFile", 
+        ("header"  , header),
+        ("mipmaps" , mipmaps)
     )
 
 @binr.struct
 def tex_mipmap_block_header(c):
-    return nt('TexMipmapBlockHeader', 
-        ('offset'            , t.uint32(c)),
-        ('size'              , t.uint32(c)),
-        ('uncompressed_size' , t.uint32(c)),
-        ('block_id_start'    , t.uint32(c)),
-        ('block_count'       , t.uint32(c))
+    return nt("TexMipmapBlockHeader", 
+        ("offset"            , t.uint32(c)),
+        ("size"              , t.uint32(c)),
+        ("uncompressed_size" , t.uint32(c)),
+        ("block_id_start"    , t.uint32(c)),
+        ("block_count"       , t.uint32(c))
     )

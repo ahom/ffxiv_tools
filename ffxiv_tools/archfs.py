@@ -36,7 +36,7 @@ class FileSystem(fs.FileSystem):
     def _folders(self):
         rv = {}
         p = Path(self._base_path)
-        for index_path in p.glob('*0000.win32.index'):
+        for index_path in p.glob("*0000.win32.index"):
             dat_id = index_path.name[:2]
             name = self.DAT_ID_TO_NAME[dat_id]
             rv[name] = Folder(
@@ -47,7 +47,7 @@ class FileSystem(fs.FileSystem):
         return rv
 
     def __str__(self):
-        return '<archfs.FileSystem(base_path={self._base_path})>'.format(self=self)
+        return "<archfs.FileSystem(base_path={self._base_path})>".format(self=self)
 
     def folders(self):
         return self._folders.values()
@@ -66,10 +66,10 @@ class Folder(fs.Folder):
     def _files(self):
         rv = {}
         file_entries = None
-        with mmap_reader('{0}/{1}0000.win32.index'.format(self._base_path, self._dat_id)) as r:
+        with mmap_reader("{0}/{1}0000.win32.index".format(self._base_path, self._dat_id)) as r:
             rv = {
                 (file_entry.dirname_hash, file_entry.filename_hash): File(
-                    dat_path = '{0}/{1}0000.win32.dat{2}'.format(self._base_path, self._dat_id, file_entry.dat_nb),
+                    dat_path = "{0}/{1}0000.win32.dat{2}".format(self._base_path, self._dat_id, file_entry.dat_nb),
                     offset = file_entry.offset,
                     fileref = fs.FileRef(
                         folder_name = self.name(),
@@ -81,7 +81,7 @@ class Folder(fs.Folder):
         return rv
 
     def __str__(self):
-        return '<archfs.Folder({}, base_path={self._base_path}, dat_id={self._dat_id})>'.format(super().__str__(), self=self)
+        return "<archfs.Folder({}, base_path={self._base_path}, dat_id={self._dat_id})>".format(super().__str__(), self=self)
 
     def files(self):
         for file_ in self._files.values():
@@ -110,7 +110,7 @@ class File(fs.File):
             return binr.read(file_header, r, self._offset)
 
     def __str__(self):
-        return '<archfs.File({}, dat_path={self._dat_path}, offset={self._offset})>'.format(super().__str__(), self=self)
+        return "<archfs.File({}, dat_path={self._dat_path}, offset={self._offset})>".format(super().__str__(), self=self)
 
     def type(self):
         return self.ENTRY_TYPE_TO_FILE_TYPE[self._header.entry_type]
@@ -124,7 +124,7 @@ class File(fs.File):
         if file_type == fs.FileType.STD:
             return fs.StdFile(self.fileref(), file_value.value)
         elif file_type == fs.FileType.MDL:
-            return fs.MdlFile(self.fileref(), file_value.value.header, file_value.value.mesh_headers, file_value.value.lods_buffers)
+            return fs.MdlFile(self.fileref(), file_value.value.header, file_value.value.mesh_shapes, file_value.value.lods_buffers)
         elif file_type == fs.FileType.TEX:
             return fs.TexFile(self.fileref(), file_value.value.header, file_value.value.mipmaps)
         elif file_type == fs.FileType.NON:

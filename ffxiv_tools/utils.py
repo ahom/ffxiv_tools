@@ -17,7 +17,7 @@ class lazy_attribute:
 
 @contextmanager
 def mmap_reader(filepath):
-    with open(filepath, 'rb') as f:
+    with open(filepath, "rb") as f:
         with mmap.mmap(f.fileno(), 0, prot=mmap.PROT_READ) as m:
             yield m
 
@@ -42,13 +42,13 @@ def print_table(headers, rows):
         widths = [max(len(str(val)) for val in column) for column in zip(headers, *rows)]
 
         # print header
-        print(' | '.join('{!s:<{width}}'.format(val, width=width) for val, width in zip(headers, widths)))
+        print(" | ".join("{!s:<{width}}".format(val, width=width) for val, width in zip(headers, widths)))
 
         # print separator
-        print('-+-'.join('-' * width for width in widths))
+        print("-+-".join("-" * width for width in widths))
 
         # print data
         for row in rows:
-            print(' | '.join('{!s:<{width}}'.format(val, width=width) for val, width in zip(row, widths)))
+            print(" | ".join("{!s:<{width}}".format(val, width=width) for val, width in zip(row, widths)))
 
         print()

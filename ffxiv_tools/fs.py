@@ -9,7 +9,7 @@ class FileRef:
         self._filename_hash = filename_hash
 
     def __str__(self):
-        return '<fs.FileRef(folder_name={self._folder_name}, dirname_hash={self._dirname_hash:08X}, filename_hash={self._filename_hash:08X})>'.format(self=self)
+        return "<fs.FileRef(folder_name={self._folder_name}, dirname_hash={self._dirname_hash:08X}, filename_hash={self._filename_hash:08X})>".format(self=self)
 
     def folder_name(self):
         return self._folder_name
@@ -23,13 +23,13 @@ class FileRef:
 def fileref_from_filepath(filepath):
     filepath_lower = filepath.lower()
 
-    folder_name = filepath_lower.split('/', 1)[0]
-    dirname, filename = filepath_lower.rsplit('/', 1)
+    folder_name = filepath_lower.split("/", 1)[0]
+    dirname, filename = filepath_lower.rsplit("/", 1)
 
     return FileRef(
         folder_name = folder_name,
-        dirname_hash = crc32(bytes(dirname, 'ascii')) ^ 0xFFFFFFFF,
-        filename_hash = crc32(bytes(filename, 'ascii')) ^ 0xFFFFFFFF
+        dirname_hash = crc32(bytes(dirname, "ascii")) ^ 0xFFFFFFFF,
+        filename_hash = crc32(bytes(filename, "ascii")) ^ 0xFFFFFFFF
     )
 
 class FileSystem:
@@ -67,10 +67,10 @@ class Folder:
         raise NotImplementedError()
 
 class FileType:
-    NON = ''
-    STD = 'std'
-    MDL = 'mdl'
-    TEX = 'tex'
+    NON = ""
+    STD = "std"
+    MDL = "mdl"
+    TEX = "tex"
 
 class File:
     def __init__(self, fileref):
@@ -90,14 +90,14 @@ class File:
 
     def _prepare_write(self, base_folder_path):
         fileref = self.fileref()
-        p = Path(base_folder_path) / fileref.folder_name() / '{:08X}'.format(fileref.dirname_hash())
+        p = Path(base_folder_path) / fileref.folder_name() / "{:08X}".format(fileref.dirname_hash())
         if not p.exists():
             p.mkdir(parents=True)
-        p = p / '{:08X}'.format(fileref.filename_hash())
+        p = p / "{:08X}".format(fileref.filename_hash())
         return p
 
     def __str__(self):
-        return '<fs.File(fileref={self._fileref})>'.format(self=self)
+        return "<fs.File(fileref={self._fileref})>".format(self=self)
 
 class NonFile(File):
     def __init__(self, fileref):
@@ -114,7 +114,7 @@ class NonFile(File):
         pass
 
     def __str__(self):
-        return '<fs.NonFile(file={})>'.format(super().__str__())
+        return "<fs.NonFile(file={})>".format(super().__str__())
 
 class StdFile(File):
     def __init__(self, fileref, data):
@@ -132,17 +132,17 @@ class StdFile(File):
         return self
 
     def write(self, base_folder_path):
-        with self._prepare_write(base_folder_path).with_suffix('.{}'.format(self.type())).open('wb') as f:
+        with self._prepare_write(base_folder_path).with_suffix(".{}".format(self.type())).open("wb") as f:
             f.write(self.data())
 
     def __str__(self):
-        return '<fs.StdFile(file={}, data={self._data})>'.format(super().__str__(), self=self)
+        return "<fs.StdFile(file={}, data={self._data})>".format(super().__str__(), self=self)
 
 class MdlFile(File):
-    def __init__(self, fileref, header, mesh_headers, lods_buffers):
+    def __init__(self, fileref, header, mesh_shapes, lods_buffers):
         super().__init__(fileref)
         self._header = header
-        self._mesh_headers = mesh_headers
+        self._mesh_shapes = mesh_shapes
         self._lods_buffers = lods_buffers
         logging.info(self)
 
@@ -152,8 +152,8 @@ class MdlFile(File):
     def header(self):
         return self._header
 
-    def mesh_headers(self):
-        return self._mesh_headers
+    def mesh_shapes(self):
+        return self._mesh_shapes
 
     def lods_buffers(self):
         return self._lods_buffers
@@ -163,17 +163,17 @@ class MdlFile(File):
 
     def write(self, base_folder_path):
         p = self._prepare_write(base_folder_path)
-        with p.with_suffix('.{}.headers'.format(self.type())).open('wb') as f:
+        with p.with_suffix(".{}.headers".format(self.type())).open("wb") as f:
             f.write(self.header())
-        with p.with_suffix('.{}.mesh_headers'.format(self.type())).open('wb') as f:
-            f.write(self.mesh_headers())
+        with p.with_suffix(".{}.mesh_shapes".format(self.type())).open("wb") as f:
+            f.write(self.mesh_shapes())
         for i, lod_buffers in enumerate(self.lods_buffers()):
             for j, buf in enumerate(lod_buffers):
-                with p.with_suffix('.{0}.lods_buffers.{1}.{2}'.format(self.type(), i, j)).open('wb') as f:
+                with p.with_suffix(".{0}.lods_buffers.{1}.{2}".format(self.type(), i, j)).open("wb") as f:
                     f.write(buf)
 
     def __str__(self):
-        return '<fs.MdlFile(file={}, header={self._header}, mesh_headers={self._mesh_headers}, lods_buffers={self._lods_buffers})>'.format(super().__str__(), self=self)
+        return "<fs.MdlFile(file={}, header={self._header}, mesh_shapes={self._mesh_shapes}, lods_buffers={self._lods_buffers})>".format(super().__str__(), self=self)
 
 class TexFile(File):
     def __init__(self, fileref, header, mipmaps):
@@ -196,11 +196,11 @@ class TexFile(File):
 
     def write(self, base_folder_path):
         p = self._prepare_write(base_folder_path)
-        with p.with_suffix('.{}.header'.format(self.type())).open('wb') as f:
+        with p.with_suffix(".{}.header".format(self.type())).open("wb") as f:
             f.write(self.header())
         for i, mipmap in enumerate(self.mipmaps()):
-            with p.with_suffix('.{0}.mipmaps.{1}'.format(self.type(), i)).open('wb') as f:
+            with p.with_suffix(".{0}.mipmaps.{1}".format(self.type(), i)).open("wb") as f:
                 f.write(mipmap)
 
     def __str__(self):
-        return '<fs.TexFile(file={}, header={self._header}, mipmaps={self._mipmaps})>'.format(super().__str__(), self=self)
+        return "<fs.TexFile(file={}, header={self._header}, mipmaps={self._mipmaps})>".format(super().__str__(), self=self)
