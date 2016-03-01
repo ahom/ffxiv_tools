@@ -6,7 +6,7 @@ from ..utils import nt
 
 MDL_MESH_SHAPE_SIZE = 0x88
 @binr.struct
-def mdl_mesh_shapes(c):
+def mdl_meshes_shape(c):
     return t.enumerate_array(c, mdl_mesh_shape, c.size() // MDL_MESH_SHAPE_SIZE)
 
 @binr.struct
