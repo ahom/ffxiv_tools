@@ -14,7 +14,7 @@ from .fs import FileType, FileRef
 from .archfs import FileSystem as archfs
 from .fsdt import DataTables as fsdt
 from .utils import print_table
-from .mdl import Model
+from .fsmdl import Model
 
 LIB_PATH = os.path.dirname(os.path.abspath(os.path.join(inspect.getfile(inspect.currentframe()), "..")))
 
@@ -105,14 +105,14 @@ def view_mdl(conf, args):
     print('>>> lods')
     for l in m.lods():
         print(l)
-    print()
-    print('>>> meshes')
-    for mesh in m.meshes():
-        print(mesh)
-    print()
-    print('>>> materials')
-    for mat in m.materials():
-        print(mat)
+        print()
+        print('>>> meshes')
+        for mesh in l.meshes():
+            print(mesh)
+            print()
+            print(mesh.positions())
+            print()
+            print(mesh.indexes())
 
 def view_dt(conf, args):
     dt = get_dt(conf, args)
