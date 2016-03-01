@@ -4,6 +4,7 @@ from pathlib import Path
 import binr
 
 from . import fs
+from .resource_id import ResourceId
 from .utils import lazy_attribute, mmap_reader
 from .fmt.index import index
 from .fmt.dat import file, file_header, file_with_header
@@ -34,45 +35,29 @@ class FileSystem(fs.FileSystem):
 
     @lazy_attribute
     def _folders(self):
-        rv = []
+        rv = {}
         p = Path(self.base_path)
         for index_path in p.glob("*0000.win32.index"):
             dat_id = index_path.name[:2]
             name = self.DAT_ID_TO_NAME[dat_id]
-            rv.append(Folder(
-                id = dat_id,
+            rv[name] = Folder(
                 name = name,
-                base_path = self.base_path
-            ))
+                base_path = "{0}/{1}0000.win32".format(self.base_path, dat_id),
+            )
         return rv
 
-    @lazy_attribute
-    def _folders_by_name(self):
-        return {
-            folder.name: folder for folder in self._folders
-        }
-
-    @lazy_attribute
-    def _folders_by_id(self):
-        return {
-            folder.id: folder for folder in self._folders
-        }
-
     def folders(self):
-        return self._folders
+        return self._folders.values()
 
-    def folder_by_name(self, folder_name):
-        return self._folders_by_name[folder_name]
-
-    def folder(self, folder_id):
-        return self._folders_by_id[folder_id]
+    def folder(self, folder_name):
+        return self._folders[folder_name]
 
     def __str__(self):
         return "<archfs.FileSystem(base_path={self.base_path})>".format(self=self)
 
 class Folder(fs.Folder):
-    def __init__(self, id, name, base_path):
-        super().__init__(id, name)
+    def __init__(self, name, base_path):
+        super().__init__(name)
         self.base_path = base_path
         logging.info(self)
 
@@ -80,16 +65,15 @@ class Folder(fs.Folder):
     def _files(self):
         rv = {}
         file_entries = None
-        with mmap_reader("{0}/{1}0000.win32.index".format(self.base_path, self.id)) as r:
+        with mmap_reader("{0}.index".format(self.base_path)) as r:
             rv = {
                 (file_entry.dirname_hash, file_entry.filename_hash): File(
-                    dat_path = "{0}/{1}0000.win32.dat{2}".format(self.base_path, self.id, file_entry.dat_nb),
+                    dat_path = "{0}.dat{1}".format(self.base_path, file_entry.dat_nb),
                     offset = file_entry.offset,
-                    fileref = fs.FileRef(
-                        dirname_hash = file_entry.dirname_hash,
-                        filename_hash = file_entry.filename_hash,
+                    resource_id = ResourceId(
                         folder_name = self.name,
-                        folder_id = self.id
+                        dirname_hash = file_entry.dirname_hash,
+                        filename_hash = file_entry.filename_hash
                     )
                 ) for file_entry in binr.read(index, r)
             }
@@ -98,10 +82,10 @@ class Folder(fs.Folder):
     def files(self):
         return self._files.values()
 
-    def file(self, fileref):
-        rv = self._files[(fileref.dirname_hash, fileref.filename_hash)]
+    def file(self, resource_id):
+        rv = self._files[(resource_id.dirname_hash, resource_id.filename_hash)]
         # Appending path as we are discovering them
-        rv.fileref.path = rv.fileref.path if fileref.path is None else fileref.path
+        rv.resource_id.path = rv.resource_id.path if resource_id.path is None else resource_id.path
         return rv
 
     def __str__(self):
@@ -115,8 +99,8 @@ class File(fs.File):
         0x04: fs.FileType.TEX
     }
 
-    def __init__(self, fileref, dat_path, offset):
-        super().__init__(fileref)
+    def __init__(self, resource_id, dat_path, offset):
+        super().__init__(resource_id)
         self.dat_path = dat_path
         self.offset = offset
         logging.info(self)
@@ -132,17 +116,17 @@ class File(fs.File):
     def read(self):
         file_value = None
         with mmap_reader(self.dat_path) as r:
-            file_value = binr.read(file_with_header, r, self.header, self.offset)
+            file_value = binr.read(file_with_header, r, self._header, self.offset)
         file_type = self.type()
 
         if file_type == fs.FileType.STD:
-            return fs.StdFile(self.fileref(), file_value.value)
+            return fs.StdFile(self.resource_id, file_value.value)
         elif file_type == fs.FileType.MDL:
-            return fs.MdlFile(self.fileref(), file_value.value.header, file_value.value.mesh_shapes, file_value.value.lods_buffers)
+            return fs.MdlFile(self.resource_id, file_value.value.header, file_value.value.mesh_shapes, file_value.value.lods_buffers)
         elif file_type == fs.FileType.TEX:
-            return fs.TexFile(self.fileref(), file_value.value.header, file_value.value.mipmaps)
+            return fs.TexFile(self.resource_id, file_value.value.header, file_value.value.mipmaps)
         elif file_type == fs.FileType.NON:
-            return fs.NonFile(self.fileref())
+            return fs.NonFile(self.resource_id)
         else:
             raise NotImplementedError()
 

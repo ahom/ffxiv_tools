@@ -10,13 +10,29 @@ from itertools import chain, islice
 
 from binr.debug import launch_server
 
-from .fs import FileType, FileRef
+from .fs import FileType 
 from .archfs import FileSystem as archfs
 from .fsdt import DataTables as fsdt
 from .utils import print_table
-from .fsmdl import Model
+from .fsmdl import ModelManager as fsmdl
+from .resource_id import resource_id_from_filepath, ResourceId
 
 LIB_PATH = os.path.dirname(os.path.abspath(os.path.join(inspect.getfile(inspect.currentframe()), "..")))
+
+#########
+# UTILS #
+#########
+def get_resource_id(args):
+    if args.n:
+        return resource_id_from_filepath(args.n)
+    elif args.r:
+        s = args.r.split("-")
+        return ResourceId(
+            folder_name = s[0],
+            dirname_hash = int(s[1], 0x10),
+            filename_hash = int(s[2], 0x10)
+        )
+    raise RuntimeError("You must specify a name or a resource_id")
 
 ############
 # COMMANDS #
@@ -48,18 +64,8 @@ def print_data(data):
             + "| " + "".join(chr(d) if 0x20 <= d < 0x7F else "." for d in data[i * BYTES_PER_LINE:(i+1) * BYTES_PER_LINE])
         )
 
-def get_file(conf, args):
-    file = None
-    if args.n:
-        file = get_fs(conf, args).file(args.filename)
-    elif args.p:
-        file = get_fs(conf, args).folder(args.p[0]).file(FileRef(args.p[0], int(args.p[1], 0x10), int(args.p[2], 0x10)))
-    else:
-        raise Exception('You must provide either the name or the path of the file!')
-    return file
-
 def view_file(conf, args):
-    file = get_file(conf, args)
+    file = get_fs(conf, args).file_by_id(get_resource_id(args))
     file = file.read()
     print(">>> file")
     print(file)
@@ -67,14 +73,14 @@ def view_file(conf, args):
     if file.type() == FileType.STD:
         print()
         print(">>> data")
-        print_data(file.data())
-        buf.append(file.data())
+        print_data(file.data)
+        buf.append(file.data)
     elif file.type() == FileType.TEX:
         print()
         print(">>> header")
-        print_data(file.header())
-        buf.append(file.header())
-        for i, mipmap in enumerate(file.mipmaps()):
+        print_data(file.header)
+        buf.append(file.header)
+        for i, mipmap in enumerate(file.mipmaps):
             print()
             print(">>> mipmap[{}]".format(i))
             print_data(mipmap)
@@ -82,13 +88,13 @@ def view_file(conf, args):
     elif file.type() == FileType.MDL:
         print()
         print(">>> header")
-        print_data(file.header())
-        buf.append(file.header())
+        print_data(file.header)
+        buf.append(file.header)
         print()
         print(">>> mesh_shapes")
-        print_data(file.mesh_shapes())
-        buf.append(file.mesh_shapes())
-        for i, lod_buffers in enumerate(file.lods_buffers()):
+        print_data(file.meshes_shape)
+        buf.append(file.meshes_shape)
+        for i, lod_buffers in enumerate(file.lods_buffers):
             for j, lod_buffer in enumerate(lod_buffers):
                 print()
                 print(">>> lod[{}]_buffer[{}]".format(i, j))
@@ -98,10 +104,7 @@ def view_file(conf, args):
         launch_server(args.m, args.f, buf[args.i])
 
 def view_mdl(conf, args):
-    file = get_file(conf, args).read()
-    if file.type() != FileType.MDL:
-        raise Exception('The file is not a model but: {}'.format(file.type()))
-    m = Model(file)
+    m = get_mdl(conf, args).get_by_id(get_resource_id(args))
     print('>>> lods')
     for l in m.lods():
         print(l)
@@ -150,16 +153,16 @@ def view_row(conf, args):
 # LIST #
 ########
 def _list_files(files):
-    print_table(["TYPE", "DIRNAME_HASH", "FILENAME_HASH"], ((file.type(), "{:08X}".format(file.fileref().dirname_hash()), "{:08X}".format(file.fileref().filename_hash())) for file in files))
+    print_table(["TYPE", "DIRNAME_HASH", "FILENAME_HASH"], ((file.type(), "{:08X}".format(file.resource_id.dirname_hash), "{:08X}".format(file.resource_id.filename_hash)) for file in files))
 
 def _list_folders(folders):
-    print_table(["NAME"], ((folder.name(), ) for folder in folders))
+    print_table(["NAME"], ((folder.name, ) for folder in folders))
 
 def _list_tables(tables):
-    print_table(["NAME"], ((table.name(), ) for table in tables))
+    print_table(["NAME"], ((table.name, ) for table in tables))
 
 def _list_loc_tables(loc_tables):
-    print_table(["NAME", "LANG"], ((loc_table.name(), loc_table.lang()) for loc_table in loc_tables))
+    print_table(["NAME", "LANG"], ((loc_table.name, loc_table.lang) for loc_table in loc_tables))
 
 def _list_rows(rows):
     rows = islice(rows, None)
@@ -224,6 +227,18 @@ def get_dt(conf, args):
         dt_name = conf["DEFAULT"]["dt"] 
     return get_dt_by_name(conf, dt_name)
 
+def get_mdl_by_name(conf, name):
+    mdl_section = conf["mdl:{}".format(name)]
+    mdl_type = mdl_section["type"]
+    if mdl_type == "fsmdl":
+        return fsmdl(get_fs_by_name(conf, mdl_section["fs"]))
+
+def get_mdl(conf, args):
+    mdl_name = args.mdl
+    if not mdl_name:
+        mdl_name = conf["DEFAULT"]["mdl"]
+    return get_mdl_by_name(conf, mdl_name)
+
 def read_config():
     config_file = os.path.expanduser("~/.ffxiv_tools.ini")
     if not os.path.exists(config_file):
@@ -247,6 +262,7 @@ def main():
     parser = argparse.ArgumentParser(description="ffxiv_tools command line interface")
     parser.add_argument("--fs")
     parser.add_argument("--dt")
+    parser.add_argument("--mdl")
     parser.add_argument("--debug", action="store_true", default=False)
     subparsers = parser.add_subparsers(title="sub modules")
 
@@ -265,7 +281,7 @@ def main():
 
     view_file_parser = view_subparsers.add_parser("file")
     view_file_parser.add_argument("-n", required=False, help="name of the file")
-    view_file_parser.add_argument("-p", nargs=3, required=False, help="folder and hashes of the file")
+    view_file_parser.add_argument("-r", required=False, help="resource id of the file {folder}-{dirhash}-{filehash}")
     view_file_parser.add_argument("-m", required=False, help="module containing the func to apply")
     view_file_parser.add_argument("-f", required=False, help="func to apply")
     view_file_parser.add_argument("-i", required=False, help="buffer index", default=0, type=int)
@@ -273,7 +289,7 @@ def main():
 
     view_mdl_parser = view_subparsers.add_parser("mdl")
     view_mdl_parser.add_argument("-n", required=False, help="name of the file")
-    view_mdl_parser.add_argument("-p", nargs=3, required=False, help="folder and hashes of the file")
+    view_mdl_parser.add_argument("-r", required=False, help="resource id of the file {folder}-{dirhash}-{filehash}")
     view_mdl_parser.set_defaults(callback=view_mdl)
 
     view_dt_parser = view_subparsers.add_parser("dt")

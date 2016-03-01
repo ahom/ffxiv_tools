@@ -2,7 +2,7 @@ import logging
 
 import binr
 
-from . import dt, fs
+from . import dt
 from .utils import lazy_attribute
 from .fmt.exl import exl
 from .fmt.exh import exh
@@ -11,17 +11,17 @@ from .fmt.exd import exd
 class DataTables(dt.DataTables):
     def __init__(self, fs):
         super().__init__()
-        self._fs = fs
+        self.fs = fs
         logging.info(self)
 
     @lazy_attribute
     def _tables(self):
         return {
-            table_name: Table(self._fs, table_name) for table_name in binr.read(exl, self._fs.std_data("exd/root.exl"))
+            table_name: Table(self.fs, table_name) for table_name in binr.read(exl, self.fs.file("exd/root.exl").read().data)
         }
 
     def __str__(self):
-        return "<fsdt.DataTables(fs={self._fs})>".format(self=self)
+        return "<fsdt.DataTables(fs={self.fs})>".format(self=self)
 
     def tables(self):
         return self._tables.values()
@@ -43,23 +43,20 @@ class Table(dt.Table):
 
     def __init__(self, fs, name):
         super().__init__(name)
-        self._fs = fs
+        self.fs = fs
         logging.info(self)
 
     @lazy_attribute
     def _loc_tables(self):
-        exh_data = binr.read(exh, self._fs.std_data("exd/{}.exh".format(self.name())))
+        exh_data = binr.read(exh, self.fs.file("exd/{}.exh".format(self.name)).read().data)
 
         rv = {}
         for lang_id in exh_data.langs:
             if lang_id <= 4:
                 lang = self.LANG_ID_TO_LANG[lang_id]
-                rv[lang] = LocTable(self._fs, self.name(), lang, exh_data.header.data_offset, exh_data.ids, exh_data.members)
+                rv[lang] = LocTable(self.fs, self.name, lang, exh_data.header.data_offset, exh_data.ids, exh_data.members)
 
         return rv
-
-    def __str__(self):
-        return "<fsdt.Table({}, fs={self._fs})>".format(super().__str__(), self=self)
 
     def loc_tables(self):
         return self._loc_tables.values()
@@ -67,30 +64,33 @@ class Table(dt.Table):
     def loc_table(self, lang):
         return self._loc_tables[lang]
 
+    def __str__(self):
+        return "<fsdt.Table({}, fs={self.fs})>".format(super().__str__(), self=self)
+
 class LocTable(dt.LocTable):
     def __init__(self, fs, name, lang, data_offset, ids, members):
         super().__init__(name, lang)
-        self._fs = fs
-        self._data_offset = data_offset
-        self._ids = ids
-        self._members = members
+        self.fs = fs
+        self.data_offset = data_offset
+        self.ids = ids
+        self.members = members
         self._lang_ext = "_{}".format(lang) if lang else ""
         logging.info(self)
 
     @lazy_attribute
     def _rows(self):
         rv = {}
-        for id in self._ids:
-            records = binr.read(exd, self._fs.std_data("exd/{0}_{1}{2}.exd".format(self.name(), id, self._lang_ext)), self._data_offset, self._members)
+        for id in self.ids:
+            records = binr.read(exd, self.fs.file("exd/{0}_{1}{2}.exd".format(self.name, id, self._lang_ext)).read().data, self.data_offset, self.members)
             for record in records:
                 rv[record.id] = record
         return rv
-
-    def __str__(self):
-        return "<fsdt.LocTable({}, fs={self._fs}, data_offset={self._data_offset}, ids={self._ids}, members={self._members})>".format(super().__str__(), self=self)
 
     def rows(self):
         return self._rows.values()
 
     def row(self, id):
         return self._rows[id]
+
+    def __str__(self):
+        return "<fsdt.LocTable({}, fs={self.fs}, data_offset={self.data_offset}, ids={self.ids}, members={self.members})>".format(super().__str__(), self=self)
