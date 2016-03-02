@@ -28,7 +28,7 @@ class Mesh:
     def positions(self):
         raise NotImplementedError()
 
-    def indexes(self):
+    def indices(self):
         raise NotImplementedError()
 
     def __str__(self):

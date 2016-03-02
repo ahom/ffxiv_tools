@@ -14,6 +14,7 @@ setup(
     },
     install_requires=[
         'binr',
+        'bottle'
     ],
     zip_safe=False
 )

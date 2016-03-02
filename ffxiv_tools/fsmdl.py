@@ -94,11 +94,11 @@ class Mesh(mdl.Mesh):
         return self._positions
 
     @lazy_attribute
-    def _indexes(self):
+    def _indices(self):
         return binr.read(index_buffer, self.index_buffer, self.header)
 
-    def indexes(self):
-        return self._indexes
+    def indices(self):
+        return self._indices
 
     def __str__(self):
         return "<mdl.Mesh(header={self.header}, shape={self.shape}, vertex_buffer={self.vertex_buffer}, index_buffer={self.index_buffer})>".format(self=self)

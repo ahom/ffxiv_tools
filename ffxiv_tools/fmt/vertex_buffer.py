@@ -3,19 +3,19 @@ import binr.types as t
 
 @binr.struct
 def float32_3(c):
-    return t.array(c , t.float32, 3)
+    return t.array(c, t.float32, 3)
 
 @binr.struct
 def ubyte_4(c):
-    return t.array(c , t.uint8, 4)
+    return t.array(c, t.uint8, 4)
 
 @binr.struct
 def ubyten_4(c):
-    return [val / 0xFF for val in t.array(c , t.uint8, 4)]
+    return [val / 0xFF for val in t.array(c, t.uint8, 4)]
 
 @binr.struct
 def float16_4(c):
-    return t.array(c , t.float16, 4)
+    return t.array(c, t.float16, 4)
 
 @binr.struct
 def vertex_buffer(c, header, shape):
@@ -46,5 +46,4 @@ def vertex(c, i, header, shape):
 
         c.seek(start_offset + i * stride + vertex_element.offset)
         rv[ELEMENT_USAGE[vertex_element.element_usage]] = ELEMENT_TYPE[vertex_element.element_type](c)
-
     return rv

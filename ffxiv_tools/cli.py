@@ -16,6 +16,7 @@ from .fsdt import DataTables as fsdt
 from .utils import print_table
 from .fsmdl import ModelManager as fsmdl
 from .resource_id import resource_id_from_filepath, ResourceId
+from .mdl_viewer import Server
 
 LIB_PATH = os.path.dirname(os.path.abspath(os.path.join(inspect.getfile(inspect.currentframe()), "..")))
 
@@ -105,17 +106,7 @@ def view_file(conf, args):
 
 def view_mdl(conf, args):
     m = get_mdl(conf, args).get_by_id(get_resource_id(args))
-    print('>>> lods')
-    for l in m.lods():
-        print(l)
-        print()
-        print('>>> meshes')
-        for mesh in l.meshes():
-            print(mesh)
-            print()
-            print(mesh.positions())
-            print()
-            print(mesh.indexes())
+    Server(m).run(host='localhost', port=8080)
 
 def view_dt(conf, args):
     dt = get_dt(conf, args)
