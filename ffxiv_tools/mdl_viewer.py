@@ -5,8 +5,14 @@ def mdl_to_dict(mdl):
                 "meshes": [
                     {
                         "attributes": {
-                            "positions": mesh.positions(),
-                            "indices": mesh.indices()
+                            "positions"     : mesh.positions(),
+                            "indices"       : mesh.indices(),
+                            "normals"       : mesh.normals(),
+                            "blend_weights" : mesh.blend_weights(),
+                            "blend_indices" : mesh.blend_indices(),
+                            "uvs"           : mesh.uvs(),
+                            "binormals"     : mesh.binormals(),
+                            "colors"        : mesh.colors()
                         }
                     } for mesh in lod.meshes()
                 ]

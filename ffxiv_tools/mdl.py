@@ -31,6 +31,23 @@ class Mesh:
     def indices(self):
         raise NotImplementedError()
 
+    def normals(self):
+        raise NotImplementedError()
+
+    def blend_weights(self):
+        raise NotImplementedError()
+
+    def blend_indices(self):
+        raise NotImplementedError()
+
+    def uvs(self):
+        raise NotImplementedError()
+
+    def binormals(self):
+        raise NotImplementedError()
+
+    def colors(self):
+        raise NotImplementedError()
+
     def __str__(self):
         return "<mdl.Mesh()>"
-

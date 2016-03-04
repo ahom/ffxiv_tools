@@ -94,6 +94,60 @@ class Mesh(mdl.Mesh):
         return self._positions
 
     @lazy_attribute
+    def _normals(self):
+        return [
+            attrs["normal"] for attrs in self._vertex_attributes
+        ]
+
+    def normals(self):
+        return self._normals
+
+    @lazy_attribute
+    def _blend_weights(self):
+        return [
+            attrs["blend_weight"] for attrs in self._vertex_attributes
+        ]
+
+    def blend_weights(self):
+        return self._blend_weights
+
+    @lazy_attribute
+    def _blend_indices(self):
+        return [
+            attrs["blend_indices"] for attrs in self._vertex_attributes
+        ]
+
+    def blend_indices(self):
+        return self._blend_indices
+
+    @lazy_attribute
+    def _uvs(self):
+        return [
+            attrs["uv"] for attrs in self._vertex_attributes
+        ]
+
+    def uvs(self):
+        return self._uvs
+
+    @lazy_attribute
+    def _binormals(self):
+        return [
+            attrs["binormal"] for attrs in self._vertex_attributes
+        ]
+
+    def binormals(self):
+        return self._binormals
+
+    @lazy_attribute
+    def _colors(self):
+        return [
+            attrs["color"] for attrs in self._vertex_attributes
+        ]
+
+    def colors(self):
+        return self._colors
+
+    @lazy_attribute
     def _indices(self):
         return binr.read(index_buffer, self.index_buffer, self.header)
 
@@ -102,4 +156,3 @@ class Mesh(mdl.Mesh):
 
     def __str__(self):
         return "<mdl.Mesh(header={self.header}, shape={self.shape}, vertex_buffer={self.vertex_buffer}, index_buffer={self.index_buffer})>".format(self=self)
-
