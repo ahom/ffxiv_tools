@@ -1,8 +1,30 @@
+function attach_attribute(geometry, name, attr, attr_type) {
+    if (attr !== undefined && attr.length > 0 && attr[0] !== null) {
+        if (attr[0].length === undefined) {
+            var buf = new attr_type(attr.length);
+            for (var i = 0; i < attr.length; ++i) {
+                buf[i] = attr[i];
+            }
+            geometry.addAttribute(name, new THREE.BufferAttribute(buf, 1));
+        } else if (attr[0].length > 0) {
+            var size = attr[0].length;
+            var buf = new attr_type(attr.length * size);
+            for (var i = 0; i < attr.length; ++i) {
+                for (var j = 0; j < size; ++j) {
+                    buf[i * size + j] = attr[i][j];
+                }
+            }
+            geometry.addAttribute(name, new THREE.BufferAttribute(buf, size));
+        }
+    }
+}
+
 window.fetch('/model').then(function (data) {
     return data.json();
 }).then(function (json) {
     var scene = new THREE.Scene();
     var camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    var controls = new THREE.OrbitControls(camera);
 
     var renderer = new THREE.WebGLRenderer();
     renderer.setSize(window.innerWidth, window.innerHeight);
@@ -15,52 +37,15 @@ window.fetch('/model').then(function (data) {
         var attrs = mesh.attributes;
         var geometry = new THREE.BufferGeometry();
 
-        var indices = new Uint16Array(attrs.indices.length);
-        for (var i = 0; i < indices.length; i++) {
-            indices[i] = attrs.indices[i];
-        }
-        geometry.setIndex(new THREE.BufferAttribute(indices, 1));
+        attach_attribute(geometry, 'index', attrs.indices, Uint16Array);
+        attach_attribute(geometry, 'position', attrs.positions, Float32Array);
+        attach_attribute(geometry, 'normal', attrs.normals, Float32Array);
+        attach_attribute(geometry, 'color', attrs.colors, Uint8Array);
+        attach_attribute(geometry, 'uv', attrs.uvs, Float32Array);
+        attach_attribute(geometry, 'skinWeight', attrs.blend_weights, Float32Array);
+        attach_attribute(geometry, 'skinIndex', attrs.blend_indices, Uint8Array);
 
-        if (attrs.positions.length > 0 && attrs.positions[0].length > 0) {
-            var positions = new Float32Array(attrs.positions.length * 3);
-            for (var i = 0; i < attrs.positions.length; i++) {
-                positions[3*i] = attrs.positions[i][0];
-                positions[3*i+1] = attrs.positions[i][1];
-                positions[3*i+2] = attrs.positions[i][2];
-            }
-            geometry.addAttribute('position', new THREE.BufferAttribute(positions, 3));
-        }
-
-        if (attrs.normals.length > 0 && attrs.normals[0].length > 0) {
-            var normals = new Float32Array(attrs.normals.length * 3);
-            for (var i = 0; i < attrs.normals.length; i++) {
-                normals[3*i] = attrs.normals[i][0];
-                normals[3*i+1] = attrs.normals[i][1];
-                normals[3*i+2] = attrs.normals[i][2];
-            }
-            geometry.addAttribute('normal', new THREE.BufferAttribute(normals, 3));
-        }
-
-        if (attrs.colors.length > 0 && attrs.colors[0].length > 0) {
-            var colors = new Float32Array(attrs.colors.length * 3);
-            for (var i = 0; i < attrs.colors.length; i++) {
-                colors[3*i] = attrs.colors[i][0];
-                colors[3*i+1] = attrs.colors[i][1];
-                colors[3*i+2] = attrs.colors[i][2];
-            }
-            geometry.addAttribute('color', new THREE.BufferAttribute(colors, 3));
-        }
-
-        if (attrs.uvs.length > 0 && attrs.uvs[0].length > 0) {
-            var uvs = new Float32Array(attrs.uvs.length * 2);
-            for (var i = 0; i < attrs.colors.length; i++) {
-                uvs[2*i] = attrs.uvs[i][0];
-                uvs[2*i+1] = attrs.uvs[i][1];
-            }
-            geometry.addAttribute('uv', new THREE.BufferAttribute(uvs, 2));
-        }
-
-        var material = new THREE.MeshBasicMaterial({color: 0xff0000});
+        var material = new THREE.MeshBasicMaterial({color: 0xff0000, wireframe: true});
         meshes.push(new THREE.Mesh(geometry, material));
     });
 
@@ -72,11 +57,6 @@ window.fetch('/model').then(function (data) {
 
     function render() {
         requestAnimationFrame(render);
-
-        meshes.forEach(function (mesh) {
-            mesh.rotation.x += 0.1;
-            mesh.rotation.y += 0.1;
-        });
 
         renderer.render(scene, camera);
     }
