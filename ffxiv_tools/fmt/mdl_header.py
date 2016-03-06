@@ -246,5 +246,5 @@ def names(c, strings_offset, offsets):
     rv = []
     for offset in offsets:
         c.seek(strings_offset + offset)
-        rv.append(t.cstringraw(c))
+        rv.append(t.cstring(c))
     return rv

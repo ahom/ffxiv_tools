@@ -16,7 +16,7 @@ class ModelManager(mdl.ModelManager):
         logging.info(self)
 
     def get_by_id(self, resource_id):
-        return Model(self.fs.file_by_id(resource_id).read())
+        return Model(self.fs.file_by_id(resource_id).get())
 
 class Model(mdl.Model):
     def __init__(self, mdl_file):
@@ -24,36 +24,43 @@ class Model(mdl.Model):
         self.mdl_file = mdl_file
         logging.info(self)
 
+    def resource_id(self):
+        return self.mdl_file.resource_id()
+
     @lazy_attribute
     def _header(self):
-        return binr.read(mdl_header, self.mdl_file.header)
+        return binr.read(mdl_header, self.mdl_file.header())
 
     @lazy_attribute
     def _lods(self):
         return [
             Lod(
                 lod_header, 
+                self._header.materials_names,
                 self._header.meshes[lod_header.mesh_index:lod_header.mesh_index + lod_header.mesh_count],
                 self._meshes_shape[lod_header.mesh_index:lod_header.mesh_index + lod_header.mesh_count],
-                self.mdl_file.lods_buffers[i][0],
-                self.mdl_file.lods_buffers[i][1]
+                *self.mdl_file.lods_buffers()[i]
             ) for i, lod_header in enumerate(self._header.lods)
         ]
 
     def lods(self):
         return self._lods
 
+    def lod(self, id):
+        return self._lods[id]
+
     @lazy_attribute
     def _meshes_shape(self):
-        return binr.read(mdl_meshes_shape, self.mdl_file.meshes_shape)
+        return binr.read(mdl_meshes_shape, self.mdl_file.meshes_shape())
 
     def __str__(self):
         return "<mdl.Model(mdl_file={self.mdl_file})>".format(self=self)
 
 class Lod(mdl.Lod):
-    def __init__(self, header, meshes_header, meshes_shape, vertex_buffer, index_buffer):
+    def __init__(self, header, materials_names, meshes_header, meshes_shape, vertex_buffer, index_buffer):
         super().__init__()
         self.header = header
+        self.materials_names = materials_names
         self.meshes_header = meshes_header
         self.meshes_shape = meshes_shape
         self.vertex_buffer = vertex_buffer
@@ -63,22 +70,29 @@ class Lod(mdl.Lod):
     @lazy_attribute
     def _meshes(self):
         return [
-            Mesh(h, s, self.vertex_buffer, self.index_buffer) for h, s in zip(self.meshes_header, self.meshes_shape)
+            Mesh(h, self.materials_names[h.material_index], s, self.vertex_buffer, self.index_buffer) for h, s in zip(self.meshes_header, self.meshes_shape)
         ]
 
     def meshes(self):
         return self._meshes
 
+    def mesh(self, id):
+        return self._meshes[id]
+
     def __str__(self):
-        return "<mdl.Lod(header={self.header}, meshes_headers={self.meshes_header}, meshes_shapes={self.meshes_shape}, vertex_buffer={self.vertex_buffer}, index_buffer={self.index_buffer})>".format(self=self)
+        return "<mdl.Lod(header={self.header}, materials_names={self.materials_names}, meshes_headers={self.meshes_header}, meshes_shapes={self.meshes_shape}, vertex_buffer={self.vertex_buffer}, index_buffer={self.index_buffer})>".format(self=self)
 
 class Mesh(mdl.Mesh):
-    def __init__(self, header, shape, vertex_buffer, index_buffer):
+    def __init__(self, header, material_name, shape, vertex_buffer, index_buffer):
         self.header = header
+        self.material_name = material_name
         self.shape = shape
         self.vertex_buffer = vertex_buffer
         self.index_buffer = index_buffer
         logging.info(self)
+
+    def material(self):
+        return self.material_name
 
     @lazy_attribute
     def _vertex_attributes(self):
@@ -155,4 +169,4 @@ class Mesh(mdl.Mesh):
         return self._indices
 
     def __str__(self):
-        return "<mdl.Mesh(header={self.header}, shape={self.shape}, vertex_buffer={self.vertex_buffer}, index_buffer={self.index_buffer})>".format(self=self)
+        return "<mdl.Mesh(header={self.header}, material_name={self.material_name}, shape={self.shape}, vertex_buffer={self.vertex_buffer}, index_buffer={self.index_buffer})>".format(self=self)

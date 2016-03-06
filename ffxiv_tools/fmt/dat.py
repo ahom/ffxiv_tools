@@ -104,7 +104,7 @@ def mdl_file(c, fh, file_offset):
 
     return nt("MdlFile", 
         ("header"       , blocks[1]),
-        ("mesh_shapes"  , blocks[0]),
+        ("meshes_shape" , blocks[0]),
         ("lods_buffers" , [
             [ blocks[i + 2], blocks[i + 8] ] for i in range(3)
         ])

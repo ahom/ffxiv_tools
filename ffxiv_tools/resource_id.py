@@ -8,7 +8,7 @@ class ResourceId:
         self.path = path
 
     def __str__(self):
-        return "<ResourceId(folder_name={self.folder_name}, dirname_hash={self.dirname_hash}, filename_hash={self.filename_hash}, path={self.path})>".format(self=self)
+        return "<ResourceId(folder_name={self.folder_name}, dirname_hash={self.dirname_hash:08X}, filename_hash={self.filename_hash:08X}, path={self.path})>".format(self=self)
 
 def resource_id_from_filepath(filepath):
     filepath_lower = filepath.lower()

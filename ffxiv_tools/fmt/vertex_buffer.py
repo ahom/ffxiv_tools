@@ -27,6 +27,7 @@ ELEMENT_USAGE = {
     0x02: "blend_indices",
     0x03: "normal",
     0x04: "uv",
+    0x05: "tangent",
     0x06: "binormal",
     0x07: "color"
 }

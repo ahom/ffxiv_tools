@@ -15,8 +15,9 @@ from .archfs import FileSystem as archfs
 from .fsdt import DataTables as fsdt
 from .utils import print_table
 from .fsmdl import ModelManager as fsmdl
+from .fstex import TextureManager as fstex
 from .resource_id import resource_id_from_filepath, ResourceId
-from .mdl_viewer import Server
+from .mdl_viewer import Server as MdlViewer
 
 LIB_PATH = os.path.dirname(os.path.abspath(os.path.join(inspect.getfile(inspect.currentframe()), "..")))
 
@@ -35,19 +36,20 @@ def get_resource_id(args):
         )
     raise RuntimeError("You must specify a name or a resource_id")
 
-############
-# COMMANDS #
-############
 ########
 # VIEW #
 ########
+
+######
+# FS #
+######
 def view_fs(conf, args):
     fs = get_fs(conf, args)
     print(">>> fs")
     print(fs)
     print()
     print(">>> folders")
-    _list_folders(fs.folders())
+    print_table(["NAME"], ((folder.name(), ) for folder in fs.folders()))
 
 def view_folder(conf, args):
     folder = get_fs(conf, args).folder(args.folder)
@@ -55,7 +57,46 @@ def view_folder(conf, args):
     print(folder)
     print()
     print(">>> files")
-    _list_files(folder.files())
+    print_table(["TYPE", "DIRNAME_HASH", "FILENAME_HASH"], ((file.type(), "{:08X}".format(file.resource_id().dirname_hash), "{:08X}".format(file.resource_id().filename_hash)) for file in folder.files()))
+
+def view_sub_folder(conf, args):
+    if args.n:
+        if not args.n.endswith("/"):
+            args.n += "/"
+        args.n += "0"
+    elif args.r:
+        args.r = "{}-00000000".format(args.r)
+    resource_id = get_resource_id(args)
+    folder = get_fs(conf, args).folder(resource_id.folder_name)
+    print(">>> sub_folder")
+    print(resource_id)
+    print()
+    print(">>> files")
+    print_table(
+        ["TYPE", "DIRNAME_HASH", "FILENAME_HASH"], 
+        ((file.type(), "{:08X}".format(file.resource_id().dirname_hash), "{:08X}".format(file.resource_id().filename_hash)) 
+            for file in filter(lambda f: f.resource_id().dirname_hash == resource_id.dirname_hash, folder.files())
+        )
+    )
+
+def find_file(conf, args):
+    if args.n:
+        if not args.n.startswith("/"):
+            args.n = "/" + args.n
+        args.n = "0" + args.n
+    elif args.r:
+        args.r = "0-00000000-{}".format(args.r)
+    resource_id = get_resource_id(args)
+    fs = get_fs(conf, args)
+    for folder in fs.folders():
+        print(">>> {}".format(folder.name()))
+        print_table(
+            ["TYPE", "DIRNAME_HASH", "FILENAME_HASH"], 
+            ((file.type(), "{:08X}".format(file.resource_id().dirname_hash), "{:08X}".format(file.resource_id().filename_hash)) 
+                for file in filter(lambda f: f.resource_id().filename_hash == resource_id.filename_hash, folder.files())
+            )
+        )
+        print()
 
 BYTES_PER_LINE = 0x10
 def print_data(data):
@@ -66,22 +107,21 @@ def print_data(data):
         )
 
 def view_file(conf, args):
-    file = get_fs(conf, args).file_by_id(get_resource_id(args))
-    file = file.read()
+    file = get_fs(conf, args).file_by_id(get_resource_id(args)).get()
     print(">>> file")
     print(file)
     buf = []
     if file.type() == FileType.STD:
         print()
         print(">>> data")
-        print_data(file.data)
-        buf.append(file.data)
+        print_data(file.data())
+        buf.append(file.data())
     elif file.type() == FileType.TEX:
         print()
         print(">>> header")
-        print_data(file.header)
-        buf.append(file.header)
-        for i, mipmap in enumerate(file.mipmaps):
+        print_data(file.header())
+        buf.append(file.header())
+        for i, mipmap in enumerate(file.mipmaps()):
             print()
             print(">>> mipmap[{}]".format(i))
             print_data(mipmap)
@@ -89,13 +129,13 @@ def view_file(conf, args):
     elif file.type() == FileType.MDL:
         print()
         print(">>> header")
-        print_data(file.header)
-        buf.append(file.header)
+        print_data(file.header())
+        buf.append(file.header())
         print()
         print(">>> mesh_shapes")
-        print_data(file.meshes_shape)
-        buf.append(file.meshes_shape)
-        for i, lod_buffers in enumerate(file.lods_buffers):
+        print_data(file.meshes_shape())
+        buf.append(file.meshes_shape())
+        for i, lod_buffers in enumerate(file.lods_buffers()):
             for j, lod_buffer in enumerate(lod_buffers):
                 print()
                 print(">>> lod[{}]_buffer[{}]".format(i, j))
@@ -104,17 +144,57 @@ def view_file(conf, args):
     if args.m and args.f:
         launch_server(args.m, args.f, buf[args.i])
 
+#######
+# MDL #
+#######
 def view_mdl(conf, args):
-    m = get_mdl(conf, args).get_by_id(get_resource_id(args))
-    Server(m).run(host='localhost', port=8080)
+    mdl = get_mdl(conf, args).get_by_id(get_resource_id(args))
+    print(">>> model")
+    print(mdl) 
+    print()
+    print(">>> lods")
+    print_table(["ID"], [[i] for i, _ in enumerate(mdl.lods())])
+    if args.debug:
+        MdlViewer(mdl).run(host='localhost', port=8080)
 
+def view_lod(conf, args):
+    lod = get_mdl(conf, args).get_by_id(get_resource_id(args)).lod(args.id)
+    print(">>> lod")
+    print(lod)
+    print()
+    print(">>> meshes")
+    print_table(["ID"], [[i] for i, _ in enumerate(lod.meshes())])
+
+def view_mesh(conf, args):
+    mesh = get_mdl(conf, args).get_by_id(get_resource_id(args)).lod(args.lod_id).mesh(args.id)
+    print(">>> mesh")
+    print(mesh)
+    print()
+    print_table(
+        ["ID", "POSITION", "NORMAL", "BLEND_WEIGHT", "BLEND_INDICES", "UV", "BINORMAL", "COLOR"],
+        ([i] + list(values) for i, values in enumerate(zip(mesh.positions(), mesh.normals(), mesh.blend_weights(), mesh.blend_indices(), mesh.uvs(), mesh.binormals(), mesh.colors())))
+    )
+    print()
+    print_table(["INDEX"], ([i] for i in mesh.indices()))
+
+#######
+# TEX #
+#######
+def view_tex(conf, args):
+    tex = get_tex(conf, args).get_by_id(get_resource_id(args))
+    print(">>> texture")
+    print(tex) 
+
+######
+# DT #
+######
 def view_dt(conf, args):
     dt = get_dt(conf, args)
     print(">>> dt")
     print(dt)
     print()
     print(">>> tables")
-    _list_tables(dt.tables())
+    print_table(["NAME"], ((table.name(), ) for table in dt.tables()))
 
 def view_table(conf, args):
     table = get_dt(conf, args).table(args.table)
@@ -122,45 +202,27 @@ def view_table(conf, args):
     print(table)
     print()
     print(">>> loc_tables")
-    _list_loc_tables(table.loc_tables())
+    print_table(["NAME", "LANG"], ((loc_table.name(), loc_table.lang()) for loc_table in table.loc_tables()))
 
 def view_loc_table(conf, args):
-    loc_table = get_dt(conf, args).table(args.table).loc_table(args.lang if args.lang else "")
+    loc_table = get_dt(conf, args).table(args.table).loc_table(args.lang)
     print(">>> loc_table")
     print(loc_table)
     print()
     print(">>> rows")
-    _list_rows(loc_table.rows())
+    rows = islice(loc_table.rows(), None)
+    first_row = list(islice(rows, 1))
+    if first_row:
+        headers = ["ID"] + [str(i) for i in range(len(first_row[0].values))]
+        print_table(headers, ([val.id] + list(val.values) for val in chain(first_row, rows)))
 
 def view_row(conf, args):
-    row = get_dt(conf, args).table(args.table).loc_table(args.lang if args.lang else "").row(args.id)
+    row = get_dt(conf, args).table(args.table).loc_table(args.lang).row(args.id)
     print(">>> id")
     print(row.id)
     print()
     print(">>> values")
     print_table(["INDEX", "VALUE"], ((i, val) for i, val in enumerate(row.values)))
-
-########
-# LIST #
-########
-def _list_files(files):
-    print_table(["TYPE", "DIRNAME_HASH", "FILENAME_HASH"], ((file.type(), "{:08X}".format(file.resource_id.dirname_hash), "{:08X}".format(file.resource_id.filename_hash)) for file in files))
-
-def _list_folders(folders):
-    print_table(["NAME"], ((folder.name, ) for folder in folders))
-
-def _list_tables(tables):
-    print_table(["NAME"], ((table.name, ) for table in tables))
-
-def _list_loc_tables(loc_tables):
-    print_table(["NAME", "LANG"], ((loc_table.name, loc_table.lang) for loc_table in loc_tables))
-
-def _list_rows(rows):
-    rows = islice(rows, None)
-    first_row = list(islice(rows, 1))
-    if first_row:
-        headers = ["ID"] + [str(i) for i in range(len(first_row[0].values))]
-        print_table(headers, ([val.id] + list(val.values) for val in chain(first_row, rows)))
 
 ###########
 # LOGGING #
@@ -230,6 +292,18 @@ def get_mdl(conf, args):
         mdl_name = conf["DEFAULT"]["mdl"]
     return get_mdl_by_name(conf, mdl_name)
 
+def get_tex_by_name(conf, name):
+    tex_section = conf["tex:{}".format(name)]
+    tex_type = tex_section["type"]
+    if tex_type == "fstex":
+        return fstex(get_fs_by_name(conf, tex_section["fs"]))
+
+def get_tex(conf, args):
+    tex_name = args.tex
+    if not tex_name:
+        tex_name = conf["DEFAULT"]["tex"]
+    return get_tex_by_name(conf, tex_name)
+
 def read_config():
     config_file = os.path.expanduser("~/.ffxiv_tools.ini")
     if not os.path.exists(config_file):
@@ -247,6 +321,10 @@ def read_config():
 # PROCESS #
 ###########
 
+def add_resource_arg(parser):
+    parser.add_argument("-n", required=False, help="name of the file")
+    parser.add_argument("-r", required=False, help="resource id of the file {folder}-{dirhash}-{filehash}")
+
 def main():
     conf = read_config()
 
@@ -254,8 +332,17 @@ def main():
     parser.add_argument("--fs")
     parser.add_argument("--dt")
     parser.add_argument("--mdl")
+    parser.add_argument("--tex")
     parser.add_argument("--debug", action="store_true", default=False)
     subparsers = parser.add_subparsers(title="sub modules")
+
+    ########################
+    # find_file sub module #
+    ########################
+    find_file_parser = subparsers.add_parser("find_file")
+    find_file_parser.add_argument("-n", required=False, help="name of the file")
+    find_file_parser.add_argument("-r", required=False, help="resource id of the file {filehash}")
+    find_file_parser.set_defaults(callback=find_file)
 
     ###################
     # view sub module #
@@ -263,6 +350,7 @@ def main():
     view_parser = subparsers.add_parser("view", help="view stuff")
     view_subparsers = view_parser.add_subparsers(title="objects")
 
+    # FS
     view_fs_parser = view_subparsers.add_parser("fs")
     view_fs_parser.set_defaults(callback=view_fs)
 
@@ -270,19 +358,40 @@ def main():
     view_folder_parser.add_argument("folder")
     view_folder_parser.set_defaults(callback=view_folder)
 
+    view_sub_folder_parser = view_subparsers.add_parser("sub_folder")
+    view_sub_folder_parser.add_argument("-n", required=False, help="name of the folder")
+    view_sub_folder_parser.add_argument("-r", required=False, help="resource id of the file {folder}-{dirhash}")
+    view_sub_folder_parser.set_defaults(callback=view_sub_folder)
+
     view_file_parser = view_subparsers.add_parser("file")
-    view_file_parser.add_argument("-n", required=False, help="name of the file")
-    view_file_parser.add_argument("-r", required=False, help="resource id of the file {folder}-{dirhash}-{filehash}")
+    add_resource_arg(view_file_parser)
     view_file_parser.add_argument("-m", required=False, help="module containing the func to apply")
     view_file_parser.add_argument("-f", required=False, help="func to apply")
     view_file_parser.add_argument("-i", required=False, help="buffer index", default=0, type=int)
     view_file_parser.set_defaults(callback=view_file)
 
+    # MDL
     view_mdl_parser = view_subparsers.add_parser("mdl")
-    view_mdl_parser.add_argument("-n", required=False, help="name of the file")
-    view_mdl_parser.add_argument("-r", required=False, help="resource id of the file {folder}-{dirhash}-{filehash}")
+    add_resource_arg(view_mdl_parser)
     view_mdl_parser.set_defaults(callback=view_mdl)
 
+    view_lod_parser = view_subparsers.add_parser("lod")
+    add_resource_arg(view_lod_parser)
+    view_lod_parser.add_argument("id", type=int, default=0, nargs="?")
+    view_lod_parser.set_defaults(callback=view_lod)
+
+    view_mesh_parser = view_subparsers.add_parser("mesh")
+    add_resource_arg(view_mesh_parser)
+    view_mesh_parser.add_argument("lod_id", type=int)
+    view_mesh_parser.add_argument("id", type=int, default=0, nargs="?")
+    view_mesh_parser.set_defaults(callback=view_mesh)
+
+    # TEX
+    view_tex_parser = view_subparsers.add_parser("tex")
+    add_resource_arg(view_tex_parser)
+    view_tex_parser.set_defaults(callback=view_tex)
+
+    # DT
     view_dt_parser = view_subparsers.add_parser("dt")
     view_dt_parser.set_defaults(callback=view_dt)
 
@@ -292,12 +401,12 @@ def main():
 
     view_loc_table_parser = view_subparsers.add_parser("loc_table")
     view_loc_table_parser.add_argument("table")
-    view_loc_table_parser.add_argument("lang", nargs="?")
+    view_loc_table_parser.add_argument("lang", nargs="?", default="")
     view_loc_table_parser.set_defaults(callback=view_loc_table)
 
     view_row_parser = view_subparsers.add_parser("row")
     view_row_parser.add_argument("table")
-    view_row_parser.add_argument("lang", nargs="?")
+    view_row_parser.add_argument("lang", nargs="?", default="")
     view_row_parser.add_argument("id", type=int)
     view_row_parser.set_defaults(callback=view_row)
 
