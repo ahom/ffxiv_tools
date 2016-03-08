@@ -6,18 +6,6 @@ from . import tex
 from .fmt.tex_header import tex_header
 from .utils import lazy_attribute
 
-class TextureManager(tex.TextureManager):
-    def __init__(self, fs):
-        super().__init__()
-        self.fs = fs
-        logging.info(self)
-
-    def get_by_id(self, resource_id):
-        return Texture(self.fs.file_by_id(resource_id).get())
-
-    def __str__(self):
-        return "<fstex.TextureManager(fs={self.fs})>".format(self=self)
-
 class Texture(tex.Texture):
     TYPEID_TO_TYPE = {
         0x1441: tex.TextureType.RGB5A1,
@@ -38,19 +26,22 @@ class Texture(tex.Texture):
 
     @lazy_attribute
     def _header(self):
-        return binr.read(tex_header, self.tex_file)
+        return binr.read(tex_header, self.tex_file.header())
     
     def width(self):
-        return self._header.header.width
+        return self._header.width
 
     def height(self):
-        return self._header.header.height
+        return self._header.height
 
     def type(self):
-        return self.TYPEID_TO_TYPE[self._header.header.type]
+        return self.TYPEID_TO_TYPE[self._header.type]
 
     def mipmaps(self):
         return self.tex_file.mipmaps()
+
+    def mipmap(self, id):
+        return self.tex_file.mipmaps()[id]
 
     def __str__(self):
         return "<fstex.Texture(tex_file={self.tex_file})>".format(self=self)

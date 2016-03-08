@@ -14,9 +14,8 @@ from .fs import FileType
 from .archfs import FileSystem as archfs
 from .fsdt import DataTables as fsdt
 from .utils import print_table
-from .fsmdl import ModelManager as fsmdl
-from .fstex import TextureManager as fstex
-from .resource_id import resource_id_from_filepath, ResourceId
+from .fsrsc import ResourceManager as fsrsc
+from .rsc import resource_id_from_filepath, ResourceId
 from .mdl_viewer import Server as MdlViewer
 
 LIB_PATH = os.path.dirname(os.path.abspath(os.path.join(inspect.getfile(inspect.currentframe()), "..")))
@@ -147,18 +146,21 @@ def view_file(conf, args):
 #######
 # MDL #
 #######
+def model_viewer(conf, args):
+    MdlViewer(
+        get_rsc(conf, args)
+    ).run(host='localhost', port=8080)
+
 def view_mdl(conf, args):
-    mdl = get_mdl(conf, args).get_by_id(get_resource_id(args))
+    mdl = get_rsc(conf, args).get_model_by_id(get_resource_id(args))
     print(">>> model")
     print(mdl) 
     print()
     print(">>> lods")
     print_table(["ID"], [[i] for i, _ in enumerate(mdl.lods())])
-    if args.debug:
-        MdlViewer(mdl).run(host='localhost', port=8080)
 
 def view_lod(conf, args):
-    lod = get_mdl(conf, args).get_by_id(get_resource_id(args)).lod(args.id)
+    lod = get_rsc(conf, args).get_model_by_id(get_resource_id(args)).lod(args.id)
     print(">>> lod")
     print(lod)
     print()
@@ -166,7 +168,7 @@ def view_lod(conf, args):
     print_table(["ID"], [[i] for i, _ in enumerate(lod.meshes())])
 
 def view_mesh(conf, args):
-    mesh = get_mdl(conf, args).get_by_id(get_resource_id(args)).lod(args.lod_id).mesh(args.id)
+    mesh = get_rsc(conf, args).get_model_by_id(get_resource_id(args)).lod(args.lod_id).mesh(args.id)
     print(">>> mesh")
     print(mesh)
     print()
@@ -181,7 +183,7 @@ def view_mesh(conf, args):
 # TEX #
 #######
 def view_tex(conf, args):
-    tex = get_tex(conf, args).get_by_id(get_resource_id(args))
+    tex = get_rsc(conf, args).get_texture_by_id(get_resource_id(args))
     print(">>> texture")
     print(tex) 
 
@@ -280,29 +282,17 @@ def get_dt(conf, args):
         dt_name = conf["DEFAULT"]["dt"] 
     return get_dt_by_name(conf, dt_name)
 
-def get_mdl_by_name(conf, name):
-    mdl_section = conf["mdl:{}".format(name)]
-    mdl_type = mdl_section["type"]
-    if mdl_type == "fsmdl":
-        return fsmdl(get_fs_by_name(conf, mdl_section["fs"]))
+def get_rsc_by_name(conf, name):
+    rsc_section = conf["rsc:{}".format(name)]
+    rsc_type = rsc_section["type"]
+    if rsc_type == "fsrsc":
+        return fsrsc(get_fs_by_name(conf, rsc_section["fs"]))
 
-def get_mdl(conf, args):
-    mdl_name = args.mdl
-    if not mdl_name:
-        mdl_name = conf["DEFAULT"]["mdl"]
-    return get_mdl_by_name(conf, mdl_name)
-
-def get_tex_by_name(conf, name):
-    tex_section = conf["tex:{}".format(name)]
-    tex_type = tex_section["type"]
-    if tex_type == "fstex":
-        return fstex(get_fs_by_name(conf, tex_section["fs"]))
-
-def get_tex(conf, args):
-    tex_name = args.tex
-    if not tex_name:
-        tex_name = conf["DEFAULT"]["tex"]
-    return get_tex_by_name(conf, tex_name)
+def get_rsc(conf, args):
+    rsc_name = args.rsc
+    if not rsc_name:
+        rsc_name = conf["DEFAULT"]["rsc"]
+    return get_rsc_by_name(conf, rsc_name)
 
 def read_config():
     config_file = os.path.expanduser("~/.ffxiv_tools.ini")
@@ -331,8 +321,7 @@ def main():
     parser = argparse.ArgumentParser(description="ffxiv_tools command line interface")
     parser.add_argument("--fs")
     parser.add_argument("--dt")
-    parser.add_argument("--mdl")
-    parser.add_argument("--tex")
+    parser.add_argument("--rsc")
     parser.add_argument("--debug", action="store_true", default=False)
     subparsers = parser.add_subparsers(title="sub modules")
 
@@ -343,6 +332,12 @@ def main():
     find_file_parser.add_argument("-n", required=False, help="name of the file")
     find_file_parser.add_argument("-r", required=False, help="resource id of the file {filehash}")
     find_file_parser.set_defaults(callback=find_file)
+
+    ###########################
+    # model_viewer sub module #
+    ###########################
+    model_viewer_parser = subparsers.add_parser("model_viewer")
+    model_viewer_parser.set_defaults(callback=model_viewer)
 
     ###################
     # view sub module #

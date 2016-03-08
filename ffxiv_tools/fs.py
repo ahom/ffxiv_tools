@@ -1,4 +1,4 @@
-from .resource_id import resource_id_from_filepath
+from .rsc import resource_id_from_filepath
 
 class FileSystem:
     def folders(self):

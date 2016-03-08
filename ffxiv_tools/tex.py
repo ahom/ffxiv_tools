@@ -1,11 +1,4 @@
-from .resource_id import resource_id_from_filepath
-
-class TextureManager:
-    def get(self, filepath):
-        return self.get_by_id(resource_id_from_filepath(filepath))
-
-    def get_by_id(self, resource_id):
-        raise NotImplementedError()
+from .rsc import resource_id_from_filepath
 
 class TextureType:
     RGB5A1 = "RGB5A1"
@@ -30,3 +23,13 @@ class Texture:
 
     def mipmaps(self):
         raise NotImplementedError()
+
+    def mipmap(self, id):
+        raise NotImplementedError()
+
+def tex_to_dict(tex):
+    return {
+        "type": tex.type(),
+        "width": tex.width(),
+        "height": tex.height()
+    }

@@ -4,7 +4,7 @@ from pathlib import Path
 import binr
 
 from . import fs
-from .resource_id import ResourceId
+from .rsc import ResourceId
 from .utils import lazy_attribute, mmap_reader
 from .fmt.index import index
 from .fmt.dat import file, file_header, file_with_header

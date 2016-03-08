@@ -13,6 +13,10 @@ def mtrl(c):
 
     string_block = t.raw(c, header.string_block_size)
 
+    tex_strings = binr.read(strings, string_block, tex_string_offsets)
+    map_strings = binr.read(strings, string_block, map_string_offsets)
+    color_set_strings = binr.read(strings, string_block, color_set_string_offsets)
+
     record1_count = t.uint32(c)
     record1s = t.array(c, record1, record1_count)
 
@@ -31,12 +35,23 @@ def mtrl(c):
 
     return nt("Mtrl",
         ("header"  , header),
+        ("textures", tex_strings),
+        ("maps", map_strings),
+        ("color_sets", color_set_strings),
         ("record1s", record1s),
         ("record2s", record2s),
         ("mat_params", mat_params),
         ("samplers", samplers),
         ("mat_params_buffer", mat_params_buffer)
     )
+
+@binr.struct
+def strings(c, string_offsets):
+    rv = []
+    for offset in string_offsets:
+        c.seek(offset)
+        rv.append(t.cstring(c))
+    return rv
 
 @binr.struct
 def mtrl_header(c):

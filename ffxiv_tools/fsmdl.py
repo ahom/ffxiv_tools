@@ -9,15 +9,6 @@ from .fmt.vertex_buffer import vertex_buffer
 from .fmt.index_buffer import index_buffer
 from .utils import lazy_attribute
 
-class ModelManager(mdl.ModelManager):
-    def __init__(self, fs):
-        super().__init__()
-        self.fs = fs
-        logging.info(self)
-
-    def get_by_id(self, resource_id):
-        return Model(self.fs.file_by_id(resource_id).get())
-
 class Model(mdl.Model):
     def __init__(self, mdl_file):
         super().__init__()

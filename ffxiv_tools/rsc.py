@@ -22,3 +22,28 @@ def resource_id_from_filepath(filepath):
         filename_hash = crc32(bytes(filename, "ascii")) ^ 0xFFFFFFFF,
         path = filepath
     )
+
+class ResourceManager:
+    def get(self, filepath):
+        return self.get_by_id(resource_id_from_filepath(filepath))
+
+    def get_model(self, filepath):
+        return self.get_model_by_id(resource_id_from_filepath(filepath))
+
+    def get_texture(self, filepath):
+        return self.get_texture_by_id(resource_id_from_filepath(filepath))
+
+    def get_material(self, filepath):
+        return self.get_material_by_id(resource_id_from_filepath(filepath))
+
+    def get_by_id(self, resource_id):
+        raise NotImplementedError()
+
+    def get_model_by_id(self, resource_id):
+        raise NotImplementedError()
+
+    def get_texture_by_id(self, resource_id):
+        raise NotImplementedError()
+
+    def get_material_by_id(self, resource_id):
+        raise NotImplementedError()
