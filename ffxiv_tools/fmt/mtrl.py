@@ -7,9 +7,9 @@ from ..utils import nt
 def mtrl(c):
     header = mtrl_header(c)
 
-    tex_string_offsets = t.array(c, t.uint32, header.tex_count)
-    map_string_offsets = t.array(c, t.uint32, header.map_count)
-    color_set_string_offsets = t.array(c, t.uint32, header.color_set_count)
+    tex_string_offsets = t.array(c, string_offset, header.tex_count)
+    map_string_offsets = t.array(c, string_offset, header.map_count)
+    color_set_string_offsets = t.array(c, string_offset, header.color_set_count)
 
     string_block = t.raw(c, header.string_block_size)
 
@@ -17,8 +17,8 @@ def mtrl(c):
     map_strings = binr.read(strings, string_block, map_string_offsets)
     color_set_strings = binr.read(strings, string_block, color_set_string_offsets)
 
-    record1_count = t.uint32(c)
-    record1s = t.array(c, record1, record1_count)
+    unknown_count = t.uint32(c)
+    record1s = t.array(c, record1, 4) if unknown_count != 0 else []
 
     mat_params_size = t.uint16(c)
     record2_count = t.uint16(c)
@@ -46,9 +46,16 @@ def mtrl(c):
     )
 
 @binr.struct
+def string_offset(c):
+    return nt('StringOffset',
+        ("offset", t.uint16(c)),
+        ("unknown", t.uint16(c))
+    )
+
+@binr.struct
 def strings(c, string_offsets):
     rv = []
-    for offset in string_offsets:
+    for offset, _ in string_offsets:
         c.seek(offset)
         rv.append(t.cstring(c))
     return rv

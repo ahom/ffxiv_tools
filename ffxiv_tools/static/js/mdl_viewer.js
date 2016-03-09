@@ -81,37 +81,51 @@ function display() {
                     + mesh.material).then(function (mtrl_data) {
                 return mtrl_data.json();
             }).then(function (mtrl_json) {
-                window.fetch('/tex/' + mtrl_json.textures[0]).then(function (tex_data) {
-                    return tex_data.json();
-                }).then(function (tex_json) {
-                   window.fetch('/tex_data/' + mtrl_json.textures[0]).then(function (tex_mipmap) {
-                       return tex_mipmap.arrayBuffer();
-                   }).then(function (tex_mipmap_data) {
-                        tex_mipmap_data = new Uint8Array(tex_mipmap_data);
-                        console.log(tex_mipmap_data);
-                        var format = null;
-                        if (tex_json.type == 'DXT1') {
-                            format = THREE.RGB_S3TC_DXT1_Format;
-                        } else if (tex_json.type == 'DXT5') {
-                            format = THREE.RGBA_S3TC_DXT5_Format;
-                        }
-                        var comp_tex = new THREE.CompressedTexture([
-                             {
-                                 data: tex_mipmap_data,
-                                 width: tex_json.width,
-                                 height: tex_json.height,
-                                 format: format
-                             }
-                        ], tex_json.width, tex_json.height, format);
-                        comp_tex.minFilter = THREE.LinearFilter;
-                        comp_tex.needsUpdate = true;
-                        var material = new THREE.MeshBasicMaterial({
-                            map: comp_tex
-                        });
-                        var new_mesh = new THREE.Mesh(geometry, material);
-                        console.log(new_mesh);
-                        scene.add(new_mesh);
-                   });
+                tex_promises = [];
+                var material = new THREE.MeshBasicMaterial();
+                var attrs = [];
+                for (var attr in mtrl_json.textures) {
+                    attrs.push(attr);
+                }
+                Promise.all(attrs.map(function (attr_r) { 
+                    return window.fetch('/tex/' + mtrl_json.textures[attr_r]).then(function (tex_data) {
+                        return tex_data.json();
+                    }).then(function (tex_json) {
+                       window.fetch('/tex_data/' + mtrl_json.textures[attr_r]).then(function (tex_mipmap) {
+                           return tex_mipmap.arrayBuffer();
+                       }).then(function (tex_mipmap_data) {
+                            tex_mipmap_data = new Uint8Array(tex_mipmap_data);
+                            var format = null;
+                            if (tex_json.type == 'DXT1') {
+                                format = THREE.RGB_S3TC_DXT1_Format;
+                            } else if (tex_json.type == 'DXT5') {
+                                format = THREE.RGBA_S3TC_DXT5_Format;
+                            }
+                            var comp_tex = new THREE.CompressedTexture([
+                                 {
+                                     data: tex_mipmap_data,
+                                     width: tex_json.width,
+                                     height: tex_json.height,
+                                     format: format
+                                 }
+                            ], tex_json.width, tex_json.height, format);
+                            comp_tex.minFilter = THREE.LinearFilter;
+                            comp_tex.needsUpdate = true;
+                            if (attr_r === 'diffuse') {
+                                material.map = comp_tex;
+                            }
+                            if (attr_r === 'specular') {
+                                material.specularMap = comp_tex;
+                            }
+                            if (attr_r === 'normal') {
+                                material.normalMap = comp_tex;
+                            }
+                       });
+                    });
+                })).then(function () {
+                    var new_mesh = new THREE.Mesh(geometry, material);
+                    console.log(new_mesh);
+                    scene.add(new_mesh);
                 });
             });
         });

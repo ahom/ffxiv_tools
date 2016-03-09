@@ -20,7 +20,14 @@ class Material(mtrl.Material):
         return binr.read(mtrl_struct, self.mtrl_file.data())
 
     def textures(self):
-        return self._struct.textures
+        dt = {
+            s.id: s.index for s in self._struct.samplers
+        }
+        return {
+            'diffuse': self._struct.textures[dt[290653886]] if 290653886 in dt else None, 
+            'specular': self._struct.textures[dt[731504677]] if 731504677 in dt else None, 
+            'normal': self._struct.textures[dt[207536625]] if 207536625 in dt else None 
+        }
 
     def __str__(self):
         return "<mtrl.Material(mtrl_file={self.mtrl_file})>".format(self=self)
